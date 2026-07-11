@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR量化基础设施</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Arial Rounded MT Bold', 'Arial', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 150, 0.15);
+            overflow: hidden;
+            border: 8px solid #ff7eb3;
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            border-bottom: 6px solid #ffcc00;
+        }
+        .header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 3px 3px 0 #ff7eb3;
+            letter-spacing: 1px;
+        }
+        .header p {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 35px;
+        }
+        .card {
+            background: #f9f9ff;
+            border-radius: 25px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(100, 100, 255, 0.1);
+            border: 4px solid;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px rgba(100, 100, 255, 0.2);
+        }
+        .card h2 {
+            font-size: 2rem;
+            margin-bottom: 20px;
+            color: #2575fc;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .card h2 svg {
+            width: 32px;
+            height: 32px;
+        }
+        .card p, .card li {
+            font-size: 1.1rem;
+            line-height: 1.7;
+            color: #444;
+            margin-bottom: 15px;
+        }
+        .card ul, .card ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        .card li {
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 18px 15px;
+            text-align: left;
+            border-bottom: 2px solid #e1e8ff;
+        }
+        th {
+            background-color: #6a11cb;
+            color: white;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f0f4ff;
+        }
+        .arch-svg {
+            width: 100%;
+            height: auto;
+            margin: 25px 0;
+            border-radius: 20px;
+            background: #f8fbff;
+            padding: 20px;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #ffcc00 0%, #ffcc00 50%, transparent 50%);
+            padding: 3px 8px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+        .footer {
+            background: linear-gradient(90deg, #2575fc 0%, #6a11cb 100%);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.8rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+            border-top: 6px solid #ffcc00;
+        }
+        .color1 { border-color: #6a11cb; }
+        .color2 { border-color: #2575fc; }
+        .color3 { border-color: #ff7eb3; }
+        .color4 { border-color: #00d2ff; }
+        .color5 { border-color: #ffcc00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>量化（Quantization）基础设施</h1>
+            <p>MLIR 提供了强大的量化支持，涵盖量化类型、量化模式、校准与仿射量化映射等核心组件，是实现高效模型压缩与硬件加速的关键。</p>
+        </div>
+        <div class="content">
+            <div class="card color1">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="#6a11cb">
+                        <path d="M12,2L1,21H23M12,6L19.53,19H4.47M11,10V14H13V10M11,16V18H13V16"/>
+                    </svg>
+                    量化类型（Quantized Types）
+                </h2>
+                <p>MLIR 定义了丰富的量化类型系统，用于表示低精度数值。</p>
+                <ul>
+                    <li><span class="highlight">Uniform Quantized Types</span>：均匀量化，如 int8、uint8。</li>
+                    <li><span class="highlight">Calibrated Quantized Types</span>：校准量化类型，存储浮点范围用于后续量化。</li>
+                    <li><span class="highlight">Quantized Integer Types</span>：携带缩放因子与零点的整数类型。</li>
+                    <li><span class="highlight">Any Quantized Types</span>：通配量化类型，用于模式匹配。</li>
+                </ul>
+                <p>这些类型在 IR 中显式表达，使得量化转换可分析、可优化。</p>
+            </div>
+            <div class="card color2">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="#2575fc">
+                        <path d="M19,3H5C3.89,3 3,3.89 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.89 20.1,3 19,3M19,19H5V5H19V19M17,8.4L13.4,12L17,15.6L15.6,17L12,13.4L8.4,17L7,15.6L10.6,12L7,8.4L8.4,7L12,10.6L15.6,7L17,8.4Z"/>
+                    </svg>
+                    量化模式（Quantization Schemes）
+                </h2>
+                <p>量化模式定义了如何将浮点值映射到整数域。</p>
+                <table>
+                    <thead>
+                        <tr><th>模式</th><th>描述</th><th>典型应用</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Affine (Scale-ZeroPoint)</td><td>线性映射：q = round(f / scale) + zeroPoint</td><td>CNN 激活值、权重</td></tr>
+                        <tr><td>Power-of-Two</td><td>缩放因子限制为 2 的幂次</td><td>硬件友好量化</td></tr>
+                        <tr><td>Dynamic Range</td><td>运行时确定范围，灵活适应输入</td><td>动态输入模型</td></tr>
+                        <tr><td>Fixed Range</td><td>静态预定义范围</td><td>部署稳定场景</td></tr>
+                    </tbody>
+                </table>
+                <p>选择合适的模式对精度与性能平衡至关重要。</p>
+            </div>
+            <div class="card color3">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="#ff7eb3">
+                        <path d="M12,15C12.81,15 13.5,14.7 14.11,14.11C14.7,13.5 15,12.81 15,12C15,11.19 14.7,10.5 14.11,9.89C13.5,9.3 12.81,9 12,9C11.19,9 10.5,9.3 9.89,9.89C9.3,10.5 9,11.19 9,12C9,12.81 9.3,13.5 9.89,14.11C10.5,14.7 11.19,15 12,15M12,2C14.75,2 17.1,3 19.05,4.95C21,6.9 22,9.25 22,12V13.45C22,14.45 21.65,15.3 21,16C20.3,16.67 19.5,17 18.5,17C17.3,17 16.31,16.5 15.56,15.5C14.56,16.5 13.38,17 12,17C10.63,17 9.45,16.5 8.46,15.54C7.5,14.55 7,13.38 7,12C7,10.63 7.5,9.45 8.46,8.46C9.45,7.5 10.63,7 12,7C13.38,7 14.55,7.5 15.54,8.46C16.5,9.45 17,10.63 17,12V13.45C17,13.86 17.16,14.22 17.46,14.53C17.76,14.84 18.11,15 18.5,15C18.92,15 19.27,14.84 19.57,14.53C19.87,14.22 20,13.86 20,13.45V12C20,9.81 19.23,7.93 17.65,6.35C16.07,4.77 14.19,4 12,4C9.81,4 7.93,4.77 6.35,6.35C4.77,7.93 4,9.81 4,12C4,14.19 4.77,16.07 6.35,17.65C7.93,19.23 9.81,20 12,20H17V22H12C9.25,22 6.9,21 4.95,19.05C3,17.1 2,14.75 2,12C2,9.25 3,6.9 4.95,4.95C6.9,3 9.25,2 12,2Z"/>
+                    </svg>
+                    校准（Calibration）
+                </h2>
+                <p>校准过程通过统计输入数据分布，确定量化的最佳参数。</p>
+                <ol>
+                    <li><strong>数据收集</strong>：在代表性数据集上运行模型，记录张量范围。</li>
+                    <li><strong>统计算法</strong>：使用最小-最大、KL散度、移动平均等方法。</li>
+                    <li><strong>参数确定</strong>：计算 scale 和 zeroPoint。</li>
+                    <li><strong>类型转换</strong>：将 CalibratedType 转换为具体 QuantizedType。</li>
+                </ol>
+                <svg class="arch-svg" viewBox="0 0 400 200">
+                    <rect x="20" y="80" width="80" height="40" rx="10" fill="#00d2ff" stroke="#2575fc" stroke-width="3"/>
+                    <text x="60" y="105" text-anchor="middle" fill="white" font-weight="bold">浮点模型</text>
+                    <path d="M100,100 L140,100" stroke="#ff7eb3" stroke-width="4" marker-end="url(#arrow)"/>
+                    <rect x="140" y="80" width="80" height="40" rx="10" fill="#ffcc00" stroke="#2575fc" stroke-width="3"/>
+                    <text x="180" y="105" text-anchor="middle" fill="white" font-weight="bold">校准数据</text>
+                    <path d="M220,100 L260,100" stroke="#ff7eb3" stroke-width="4" marker-end="url(#arrow)"/>
+                    <rect x="260" y="80" width="80" height="40" rx="10" fill="#6a11cb" stroke="#2575fc" stroke-width="3"/>
+                    <text x="300" y="105" text-anchor="middle" fill="white" font-weight="bold">量化参数</text>
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#ff7eb3"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            <div class="card color4">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="#00d2ff">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6M12,8A4,4 0 0,1 16,12A4,4 0 0,1 12,16A4,4 0 0,1 8,12A4,4 0 0,1 12,8Z"/>
+                    </svg>
+                    仿射量化映射（Affine Quantization Map）
+                </h2>
+                <p>仿射映射是量化中最常用的线性映射方法，公式为：</p>
+                <p style="text-align: center; font-size: 1.4rem; margin: 20px; background: #e6f7ff; padding: 15px; border-radius: 15px;">
+                    <strong>real_value = scale × (quantized_value - zero_point)</strong>
+                </p>
+                <p>关键属性：</p>
+                <ul>
+                    <li><span class="highlight">Scale</span>：浮点缩放因子，决定量化步长。</li>
+                    <li><span class="highlight">Zero Point</span>：整数零点，用于映射真实零值。</li>
+                    <li><span class="highlight">对称 vs 非对称</span>：zeroPoint 是否为零，影响表示范围。</li>
+                    <li><span class="highlight">窄范围</span>：如 int8 用 [-127,127] 代替 [-128,127]，避免零点偏移误差。</li>
+                </ul>
+                <p>MLIR 通过属性将映射与类型关联，支持复杂张量量化。</p>
+            </div>
+            <div class="card color5">
+                <h2>
+                    <svg viewBox="0 0 24 24" fill="#ffcc00">
+                        <path d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L5,8.09V15.91L12,19.85L19,15.91V8.09L12,4.15Z"/>
+                    </svg>
+                    工程实践要点
+                </h2>
+                <p>在 AI 编译器中落地量化基础设施的注意事项：</p>
+                <ul>
+                    <li><strong>分层设计</strong>：分离量化算法与硬件 lowering，提高可移植性。</li>
+                    <li><strong>类型传播</strong>：利用 MLIR 类型系统自动传播量化信息。</li>
+                    <li><strong>模式匹配重写</strong>：将量化模式匹配为硬件指令或库调用。</li>
+                    <li><strong>校准集成</strong>：提供插件式校准接口，支持用户自定义算法。</li>
+                    <li><strong>调试可视化</strong>：量化参数与精度损失的可视化工具链。</li>
+                </ul>
+                <p>量化是模型部署的关键步骤，MLIR 提供了从算法到硬件的完整基础设施。</p>
+            </div>
+        </div>
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

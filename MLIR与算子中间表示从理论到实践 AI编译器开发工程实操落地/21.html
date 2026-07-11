@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>从深度学习框架到MLIR：桥接实践</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --success: #4CAF50;
+            --warning: #FFC107;
+            --rounded: 20px;
+            --shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--dark);
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: var(--rounded);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            padding: 40px;
+            position: relative;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--primary);
+        }
+        h1 {
+            color: var(--primary);
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: var(--secondary);
+            font-size: 1.4rem;
+            font-weight: 300;
+        }
+        .intro {
+            background: linear-gradient(120deg, #e3f2fd, #fce4ec);
+            padding: 25px;
+            border-radius: var(--rounded);
+            margin-bottom: 30px;
+            line-height: 1.8;
+            font-size: 1.1rem;
+            border-left: 6px solid var(--accent);
+        }
+        .section {
+            margin-bottom: 40px;
+        }
+        h2 {
+            color: var(--dark);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px dashed var(--warning);
+            display: flex;
+            align-items: center;
+        }
+        h2 svg {
+            margin-right: 10px;
+            width: 30px;
+            height: 30px;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: var(--rounded);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+            border-top: 5px solid var(--primary);
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card h3 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        .card ul, .card ol {
+            padding-left: 20px;
+            margin-bottom: 15px;
+        }
+        .card li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .architecture {
+            background: #f0f8ff;
+            padding: 25px;
+            border-radius: var(--rounded);
+            margin: 30px 0;
+            text-align: center;
+        }
+        .architecture svg {
+            max-width: 100%;
+            height: auto;
+        }
+        .highlight {
+            background: linear-gradient(90deg, #FFECD2 0%, #FCB69F 100%);
+            padding: 5px 10px;
+            border-radius: 10px;
+            font-weight: bold;
+            color: #333;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px solid var(--primary);
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .emoji {
+            font-size: 1.5rem;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>从深度学习框架到MLIR：桥接实践</h1>
+            <div class="subtitle">Torch-MLIR、TensorFlow MLIR、JAX/HLO导入桥接深度解析</div>
+        </header>
+
+        <section class="intro">
+            <span class="emoji">🚀</span>MLIR作为下一代编译器基础设施，为不同深度学习框架的中间表示提供了统一的、可扩展的抽象层。本讲深入探讨如何将PyTorch、TensorFlow和JAX的模型与计算图导入到MLIR生态中，实现从高级框架到底层硬件的高效编译与优化。
+        </section>
+
+        <section class="section">
+            <h2>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                核心桥接技术概览
+            </h2>
+            <div class="content">
+                <div class="card">
+                    <h3>Torch-MLIR</h3>
+                    <ul>
+                        <li><span class="highlight">目标</span>: 将PyTorch模型（TorchScript, FX）转换为MLIR方言。</li>
+                        <li><span class="highlight">关键组件</span>: Torch方言、转换通道、类型系统映射。</li>
+                        <li><span class="highlight">流程</span>: PyTorch模型 → TorchScript/FX Graph → Torch方言 → 标准/目标方言。</li>
+                        <li><span class="highlight">优势</span>: 支持动态形状、Python原生集成、渐进式 lowering。</li>
+                        <li><span class="highlight">应用</span>: 移动端部署、异构计算、自定义算子融合。</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>TensorFlow MLIR</h3>
+                    <ul>
+                        <li><span class="highlight">目标</span>: 将TensorFlow GraphDef/SavedModel转换为MLIR。</li>
+                        <li><span class="highlight">关键组件</span>: TF方言、Graph导入器、控制流处理。</li>
+                        <li><span class="highlight">流程</span>: SavedModel → GraphDef → TF方言 → TFLite/其他后端。</li>
+                        <li><span class="highlight">优势</span>: 成熟稳定、支持完整TF特性、与XLA深度集成。</li>
+                        <li><span class="highlight">应用</span>: 服务器端优化、TPU编译、模型量化与剪枝。</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3>JAX / HLO 导入</h3>
+                    <ul>
+                        <li><span class="highlight">目标</span>: 将JAX的JIT计算（通过HLO）导入MLIR。</li>
+                        <li><span class="highlight">关键组件</span>: MHLO方言、HLO到MHLO转换器。</li>
+                        <li><span class="highlight">流程</span>: JAX函数 → HLO计算 → MHLO方言 → 标准方言。</li>
+                        <li><span class="highlight">优势</span>: 函数式语义、高阶自动微分、跨平台性能可移植。</li>
+                        <li><span class="highlight">应用</span>: 科研计算、高性能数值模拟、自动微分优化。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                </svg>
+                技术对比与选型指南
+            </h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>特性</th>
+                        <th>Torch-MLIR</th>
+                        <th>TensorFlow MLIR</th>
+                        <th>JAX/HLO导入</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>动态性支持</strong></td>
+                        <td>优秀（动态形状）</td>
+                        <td>良好（有限动态）</td>
+                        <td>优秀（全动态）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>开发成熟度</strong></td>
+                        <td>快速发展</td>
+                        <td>非常成熟</td>
+                        <td>成熟</td>
+                    </tr>
+                    <tr>
+                        <td><strong>生态系统</strong></td>
+                        <td>PyTorch生态</td>
+                        <td>TensorFlow全栈</td>
+                        <td>JAX/NumPy生态</td>
+                    </tr>
+                    <tr>
+                        <td><strong>学习曲线</strong></td>
+                        <td>中等</td>
+                        <td>较陡峭</td>
+                        <td>中等偏上</td>
+                    </tr>
+                    <tr>
+                        <td><strong>典型用例</strong></td>
+                        <td>移动端、研究原型</td>
+                        <td>生产部署、企业级</td>
+                        <td>科学计算、高性能</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="section">
+            <h2>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3l4 4-4 4M9 3l-4 4 4 4m10 6v6a2 2 0 01-2 2H7a2 2 0 01-2-2V7a2 2 0 012-2h6"/>
+                </svg>
+                统一导入架构示意图
+            </h2>
+            <div class="architecture">
+                <svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#6C63FF"/>
+                            <stop offset="100%" stop-color="#36D1DC"/>
+                        </linearGradient>
+                        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#FF6584"/>
+                            <stop offset="100%" stop-color="#FFC107"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- 框架层 -->
+                    <rect x="50" y="30" width="200" height="50" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                    <text x="150" y="60" text-anchor="middle" fill="white" font-size="16" font-weight="bold">PyTorch / TensorFlow / JAX</text>
+                    <!-- 桥接层 -->
+                    <rect x="300" y="30" width="200" height="50" rx="10" fill="url(#grad2)" opacity="0.9"/>
+                    <text x="400" y="60" text-anchor="middle" fill="white" font-size="16" font-weight="bold">导入桥接 (Torch/TF/MHLO 方言)</text>
+                    <!-- MLIR核心 -->
+                    <rect x="550" y="30" width="200" height="50" rx="10" fill="#4CAF50" opacity="0.9"/>
+                    <text x="650" y="60" text-anchor="middle" fill="white" font-size="16" font-weight="bold">MLIR 核心基础设施</text>
+                    <!-- 箭头 -->
+                    <polyline points="250,55 300,55" stroke="#333" stroke-width="2" fill="none"/>
+                    <polygon points="300,55 295,50 295,60 300,55" fill="#333"/>
+                    <polyline points="500,55 550,55" stroke="#333" stroke-width="2" fill="none"/>
+                    <polygon points="550,55 545,50 545,60 550,55" fill="#333"/>
+                    <!-- 后端 -->
+                    <rect x="250" y="150" width="300" height="50" rx="10" fill="#2D3047" opacity="0.9"/>
+                    <text x="400" y="180" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Lowering 至 LLVM、GPU、TPU、自定义硬件</text>
+                    <!-- 垂直线 -->
+                    <polyline points="400,80 400,150" stroke="#333" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
+                    <polygon points="400,150 395,145 405,145 400,150" fill="#333"/>
+                    <!-- 说明 -->
+                    <text x="400" y="250" text-anchor="middle" fill="#666" font-size="14">统一的MLIR中间层实现了多框架前端与多硬件后端的解耦与高效编译</text>
+                </svg>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/>
+                    <polyline points="13 2 13 9 20 9"/>
+                </svg>
+                工程实践要点
+            </h2>
+            <div class="content">
+                <div class="card">
+                    <h3>最佳实践</h3>
+                    <ol>
+                        <li><strong>渐进式转换</strong>: 先将框架图转换为框架特定方言，再逐步lowering。</li>
+                        <li><strong>类型与形状推断</strong>: 充分利用MLIR的类型系统处理动态类型。</li>
+                        <li><strong>自定义算子处理</strong>: 通过外部库或手工编写MLIR实现。</li>
+                        <li><strong>调试与可视化</strong>: 使用mlir-opt、mlir-translate等工具链。</li>
+                        <li><strong>性能剖析</strong>: 结合MLIR的profiling和性能分析工具。</li>
+                    </ol>
+                </div>
+                <div class="card">
+                    <h3>常见挑战与解决方案</h3>
+                    <ul>
+                        <li><span class="highlight">挑战1</span>: 框架动态特性与静态编译的矛盾 → 使用shape dialect和运行时支持。</li>
+                        <li><span class="highlight">挑战2</span>: 控制流图的差异 → 统一转换为MLIR CFG或SCF方言。</li>
+                        <li><span class="highlight">挑战3</span>: 自定义算子兼容性 → 创建扩展方言或调用外部函数。</li>
+                        <li><span class="highlight">挑战4</span>: 性能调优复杂性 → 利用MLIR的多层中间表示进行渐进优化。</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

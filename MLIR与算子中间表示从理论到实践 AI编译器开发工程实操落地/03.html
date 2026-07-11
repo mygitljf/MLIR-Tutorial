@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR基础设施搭建 | 从理论到AI编译器工程落地</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --shadow: rgba(108, 99, 255, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+        main {
+            padding: 40px;
+        }
+        section {
+            margin-bottom: 50px;
+        }
+        h2 {
+            color: var(--primary);
+            border-left: 6px solid var(--secondary);
+            padding-left: 15px;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+        p {
+            line-height: 1.8;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+        .highlight {
+            background: linear-gradient(120deg, rgba(108, 99, 255, 0.1) 0%, rgba(54, 209, 220, 0.1) 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 1px dashed var(--primary);
+        }
+        .columns {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .col {
+            flex: 1;
+            min-width: 300px;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px var(--shadow);
+        }
+        th, td {
+            padding: 18px 20px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+        tr:hover {
+            background-color: rgba(108, 99, 255, 0.05);
+        }
+        .code-block {
+            background: var(--dark);
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 5px solid var(--accent);
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        footer {
+            background: linear-gradient(90deg, var(--dark), #3a3d5c);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
+        }
+        .emoji {
+            font-size: 1.4rem;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .tag {
+            display: inline-block;
+            background: var(--secondary);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MLIR基础设施搭建</h1>
+            <div class="subtitle">LLVM与MLIR源码编译、开发环境配置、第一个MLIR Pass编写与运行</div>
+            <div style="margin-top: 20px;">
+                <span class="tag">AI编译器</span>
+                <span class="tag">MLIR</span>
+                <span class="tag">LLVM</span>
+                <span class="tag">工程实践</span>
+                <span class="tag">高性能计算</span>
+            </div>
+        </header>
+        <main>
+            <section>
+                <h2><span class="emoji">🏗️</span>课程核心目标</h2>
+                <p>本章节旨在带领学习者完成MLIR开发环境的完整搭建，从源码编译LLVM/MLIR，到配置现代化的构建系统（CMake/Bazel），最终动手编写并运行第一个MLIR Pass，打通从理论到实践的完整路径。</p>
+                <div class="highlight">
+                    <p><strong>关键收获：</strong> 掌握MLIR开发环境的标准搭建流程，理解MLIR Pass的基本结构与运行机制，具备独立开展MLIR相关开发与优化的基础能力。</p>
+                </div>
+            </section>
+
+            <section>
+                <h2><span class="emoji">📦</span>LLVM与MLIR源码编译</h2>
+                <div class="columns">
+                    <div class="col">
+                        <h3>获取源码</h3>
+                        <ul>
+                            <li>使用官方LLVM项目仓库，MLIR作为其子项目存在。</li>
+                            <li>推荐使用Git进行克隆，并切换到稳定的发布分支。</li>
+                            <li>确保磁盘空间充足（建议预留20GB以上）。</li>
+                        </ul>
+                        <div class="code-block">
+git clone https://github.com/llvm/llvm-project.git<br>
+cd llvm-project<br>
+git checkout release/18.x
+                        </div>
+                    </div>
+                    <div class="col">
+                        <h3>编译配置</h3>
+                        <ul>
+                            <li>使用CMake进行配置，推荐Ninja作为生成器以加速构建。</li>
+                            <li>关键配置选项：启用MLIR、启用断言、优化级别。</li>
+                            <li>构建类型通常选择Debug（便于调试）或Release（性能最佳）。</li>
+                        </ul>
+                        <div class="code-block">
+mkdir build && cd build<br>
+cmake -G Ninja ../llvm \<br>
+  -DLLVM_ENABLE_PROJECTS="mlir" \<br>
+  -DCMAKE_BUILD_TYPE=Release \<br>
+  -DLLVM_TARGETS_TO_BUILD="host"
+                        </div>
+                    </div>
+                </div>
+                <div class="svg-container">
+                    <svg width="600" height="120" viewBox="0 0 600 120">
+                        <rect x="10" y="50" width="180" height="40" rx="8" fill="#6C63FF" opacity="0.8"/>
+                        <text x="100" y="75" text-anchor="middle" fill="white" font-weight="bold">源码获取</text>
+                        <path d="M200 70 L240 70" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow)"/>
+                        <rect x="250" y="50" width="180" height="40" rx="8" fill="#FF6584" opacity="0.8"/>
+                        <text x="340" y="75" text-anchor="middle" fill="white" font-weight="bold">CMake配置</text>
+                        <path d="M440 70 L480 70" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow)"/>
+                        <rect x="490" y="50" width="180" height="40" rx="8" fill="#6C63FF" opacity="0.8"/>
+                        <text x="580" y="75" text-anchor="middle" fill="white" font-weight="bold">编译安装</text>
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#36D1DC"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2><span class="emoji">⚙️</span>开发环境配置：CMake与Bazel</h2>
+                <p>两种主流的构建系统，适用于不同的项目规模和团队偏好。</p>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>CMake</th>
+                            <th>Bazel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>定位</strong></td>
+                            <td>跨平台构建生成器</td>
+                            <td>快速、可扩展的构建与测试系统</td>
+                        </tr>
+                        <tr>
+                            <td><strong>依赖管理</strong></td>
+                            <td>需借助FetchContent或find_package</td>
+                            <td>内置的、声明式的外部依赖管理</td>
+                        </tr>
+                        <tr>
+                            <td><strong>构建速度</strong></td>
+                            <td>依赖生成器（Ninja快，Make慢）</td>
+                            <td>高级缓存与并行化，增量构建极快</td>
+                        </tr>
+                        <tr>
+                            <td><strong>生态</strong></td>
+                            <td>C++项目事实标准，生态成熟</td>
+                            <td>在AI/大规模项目中流行</td>
+                        </tr>
+                        <tr>
+                            <td><strong>推荐场景</strong></td>
+                            <td>传统C++项目，与LLVM生态深度集成</td>
+                            <td>大型MLIR项目，需要沙箱与远程缓存</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="highlight">
+                    <p><strong>实践建议：</strong> 初学者建议从CMake开始，因其与LLVM/MLIR原生集成，文档丰富。大型团队或追求极致构建性能的项目可评估引入Bazel。</p>
+                </div>
+            </section>
+
+            <section>
+                <h2><span class="emoji">🚀</span>第一个MLIR Pass编写与运行</h2>
+                <p>MLIR Pass是转换和优化MLIR程序的核心单元。下面以编写一个简单的“Hello World” Pass为例。</p>
+                <div class="columns">
+                    <div class="col">
+                        <h3>1. Pass骨架</h3>
+                        <div class="code-block">
+// HelloPass.cpp<br>
+#include "mlir/Pass/Pass.h"<br>
+using namespace mlir;<br>
+<br>
+struct HelloPass : public PassWrapper&lt;HelloPass, OperationPass&lt;FuncOp&gt;&gt; {<br>
+  void runOnOperation() override {<br>
+    FuncOp op = getOperation();<br>
+    op-&gt;emitRemark() &lt;&lt; "Hello, MLIR!";<br>
+  }<br>
+};
+                        </div>
+                    </div>
+                    <div class="col">
+                        <h3>2. 注册Pass</h3>
+                        <div class="code-block">
+// 在Pass管理文件中注册<br>
+void registerHelloPass() {<br>
+  PassRegistration&lt;HelloPass&gt;(<br>
+    "hello", "A pass that says hello."<br>
+  );<br>
+}
+                        </div>
+                    </div>
+                </div>
+                <h3 style="margin-top:30px;">3. 运行Pass</h3>
+                <p>使用MLIR优化工具<code>mlir-opt</code>加载并运行自定义Pass。</p>
+                <div class="code-block">
+# 编译生成mlir-opt<br>
+ninja mlir-opt<br>
+<br>
+# 运行Pass<br>
+./build/bin/mlir-opt input.mlir \<br>
+  --hello --verify-diagnostics
+                </div>
+                <div class="svg-container">
+                    <svg width="500" height="180" viewBox="0 0 500 180">
+                        <rect x="50" y="20" width="120" height="50" rx="10" fill="#FF6584" opacity="0.7"/>
+                        <text x="110" y="50" text-anchor="middle" fill="white" font-weight="bold">Pass定义</text>
+                        <path d="M110 70 L110 100" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow2)"/>
+                        <rect x="180" y="100" width="120" height="50" rx="10" fill="#6C63FF" opacity="0.7"/>
+                        <text x="240" y="130" text-anchor="middle" fill="white" font-weight="bold">注册到系统</text>
+                        <path d="M240 150 L240 180" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow2)"/>
+                        <rect x="50" y="180" width="120" height="50" rx="10" fill="#FF6584" opacity="0.7"/>
+                        <text x="110" y="210" text-anchor="middle" fill="white" font-weight="bold">编译工具链</text>
+                        <path d="M110 230 L110 260" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow2)"/>
+                        <rect x="180" y="260" width="120" height="50" rx="10" fill="#6C63FF" opacity="0.7"/>
+                        <text x="240" y="290" text-anchor="middle" fill="white" font-weight="bold">运行与验证</text>
+                        <defs>
+                            <marker id="arrow2" markerWidth="10" markerHeight="10" refX="5" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L5,3 z" fill="#36D1DC"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </section>
+
+            <section>
+                <h2><span class="emoji">📚</span>核心要点总结</h2>
+                <ul>
+                    <li><strong>环境是基石：</strong> 稳定的LLVM/MLIR编译环境是后续所有开发与实验的前提。</li>
+                    <li><strong>构建系统选择：</strong> 根据项目阶段与团队习惯，合理选择CMake或Bazel。</li>
+                    <li><strong>Pass是核心抽象：</strong> 理解Pass的编写、注册与运行机制是深入MLIR的关键一步。</li>
+                    <li><strong>工具链熟悉：</strong> 掌握<code>mlir-opt</code>、<code>mlir-translate</code>等基础工具的使用。</li>
+                    <li><strong>迭代验证：</strong> 编写Pass后，务必通过实际MLIR程序运行验证其正确性。</li>
+                </ul>
+            </section>
+        </main>
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

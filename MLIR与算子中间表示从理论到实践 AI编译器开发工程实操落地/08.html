@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR模式匹配与重写</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --accent: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --warning: #ff9e00;
+            --gradient: linear-gradient(135deg, #4361ee, #3a0ca3, #f72585);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--dark);
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        header {
+            background: var(--gradient);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+        header .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 60px;
+            background: var(--accent);
+            clip-path: polygon(50% 100%, 0 0, 100% 0);
+        }
+        main {
+            padding: 50px 40px;
+        }
+        section {
+            margin-bottom: 50px;
+        }
+        h2 {
+            color: var(--secondary);
+            font-size: 2.2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--success);
+            display: inline-block;
+        }
+        p {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+            color: #444;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #ff9e00 0%, #ff9e00 100%);
+            background-repeat: no-repeat;
+            background-size: 100% 0.3em;
+            background-position: 0 88%;
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        .card-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border-top: 6px solid var(--primary);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(67, 97, 238, 0.2);
+        }
+        .card h3 {
+            color: var(--primary);
+            font-size: 1.6rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .card h3 svg {
+            margin-right: 12px;
+            width: 28px;
+            height: 28px;
+        }
+        .card ul, .card ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        .card li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 18px 20px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+        tr:hover {
+            background-color: #eef2ff;
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 40px 0;
+        }
+        .architecture {
+            background: #f8f9ff;
+            padding: 30px;
+            border-radius: 18px;
+            margin: 40px 0;
+        }
+        .architecture h3 {
+            text-align: center;
+            color: var(--secondary);
+            margin-bottom: 25px;
+        }
+        footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+        .keyword {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 0 5px 5px 0;
+        }
+        .note {
+            background: #e7f7ff;
+            border-left: 5px solid var(--success);
+            padding: 20px;
+            border-radius: 0 12px 12px 0;
+            margin: 25px 0;
+        }
+        .note strong {
+            color: var(--secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MLIR模式匹配与重写</h1>
+            <div class="subtitle">
+                深入解析声明式重写规则(DRR)、C++重写模式与贪婪重写器，构建高效可靠的编译器转换基础设施
+            </div>
+            <div class="decoration"></div>
+        </header>
+
+        <main>
+            <section>
+                <h2>核心概念</h2>
+                <p>在MLIR中，<span class="highlight">模式匹配与重写</span>是编译器转换的核心机制，它允许开发者定义如何将一种IR模式转换为另一种更优化或更规范的IR模式。这一过程是MLIR多层次中间表示能够进行渐进式 lowering 和优化的基础。</p>
+                <p>MLIR提供了多种方式来表达重写规则，从高级的声明式语法到灵活的C++ API，适应不同复杂度和性能需求的转换场景。</p>
+                
+                <div class="card-container">
+                    <div class="card">
+                        <h3>
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                            声明式重写规则 (DRR)
+                        </h3>
+                        <p>使用基于TableGen的声明式语法，简洁定义源模式到目标模式的映射。</p>
+                        <ul>
+                            <li><strong>高可读性</strong>：类似DSL的语法，意图清晰</li>
+                            <li><strong>易于维护</strong>：规则集中管理，减少样板代码</li>
+                            <li><strong>自动验证</strong>：MLIR自动检查模式合法性</li>
+                            <li><strong>快速原型</strong>：快速实现常见规范化转换</li>
+                        </ul>
+                        <div class="keyword">TableGen</div>
+                        <div class="keyword">声明式</div>
+                        <div class="keyword">模式匹配</div>
+                    </div>
+
+                    <div class="card">
+                        <h3>
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12,17.27L18.18,21L16.54,13.97L22,9.24L14.81,8.62L12,2L9.19,8.62L2,9.24L7.45,13.97L5.82,21L12,17.27Z"/>
+                            </svg>
+                            C++重写模式
+                        </h3>
+                        <p>通过C++ API实现，提供最大灵活性和控制力，处理复杂转换逻辑。</p>
+                        <ul>
+                            <li><strong>完全控制</strong>：访问所有IR信息和基础设施</li>
+                            <li><strong>复杂逻辑</strong>：支持条件转换、副作用处理</li>
+                            <li><strong>动态匹配</strong>：运行时决定匹配和重写行为</li>
+                            <li><strong>性能优化</strong>：精细控制匹配和重写过程</li>
+                        </ul>
+                        <div class="keyword">灵活性</div>
+                        <div class="keyword">高性能</div>
+                        <div class="keyword">复杂转换</div>
+                    </div>
+
+                    <div class="card">
+                        <h3>
+                            <svg viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M9,5A7,7 0 0,0 2,12A7,7 0 0,0 9,19C10.04,19 11.06,18.76 12,18.32C12.94,18.76 13.96,19 15,19A7,7 0 0,0 22,12A7,7 0 0,0 15,5C13.96,5 12.94,5.24 12,5.68C11.06,5.24 10.04,5 9,5M9,7C9.34,7 9.67,7.03 10,7.1C8.72,8.41 8,10.17 8,12C8,13.83 8.72,15.59 10,16.89C9.67,16.96 9.34,17 9,17A5,5 0 0,1 4,12A5,5 0 0,1 9,7M15,7A5,5 0 0,1 20,12A5,5 0 0,1 15,17C14.66,17 14.33,16.97 14,16.9C15.28,15.59 16,13.83 16,12C16,10.17 15.28,8.41 14,7.11C14.33,7.04 14.66,7 15,7Z"/>
+                            </svg>
+                            贪婪重写器
+                        </h3>
+                        <p>驱动重写过程的基础设施，应用模式直到达到不动点(fixed point)。</p>
+                        <ul>
+                            <li><strong>迭代应用</strong>：重复应用模式直到无变化</li>
+                            <li><strong>冲突解决</strong>：处理模式间的优先级和冲突</li>
+                            <li><strong>工作列表算法</strong>：高效管理待处理操作</li>
+                            <li><strong>可配置策略</strong>：控制重写顺序和范围</li>
+                        </ul>
+                        <div class="keyword">不动点</div>
+                        <div class="keyword">工作列表</div>
+                        <div class="keyword">迭代优化</div>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>技术对比</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>特性</th>
+                            <th>声明式重写规则(DRR)</th>
+                            <th>C++重写模式</th>
+                            <th>贪婪重写器</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>表达方式</strong></td>
+                            <td>TableGen声明式语法</td>
+                            <td>C++ API编程</td>
+                            <td>配置与策略驱动</td>
+                        </tr>
+                        <tr>
+                            <td><strong>使用场景</strong></td>
+                            <td>简单规范化、代数化简</td>
+                            <td>复杂转换、条件重写</td>
+                            <td>驱动转换过程</td>
+                        </tr>
+                        <tr>
+                            <td><strong>开发效率</strong></td>
+                            <td>高（简洁明了）</td>
+                            <td>中（需要更多代码）</td>
+                            <td>N/A（基础设施）</td>
+                        </tr>
+                        <tr>
+                            <td><strong>灵活性</strong></td>
+                            <td>有限（语法约束）</td>
+                            <td>极高（完全编程控制）</td>
+                            <td>可配置</td>
+                        </tr>
+                        <tr>
+                            <td><strong>性能控制</strong></td>
+                            <td>自动优化</td>
+                            <td>精细控制</td>
+                            <td>算法级控制</td>
+                        </tr>
+                        <tr>
+                            <td><strong>学习曲线</strong></td>
+                            <td>平缓</td>
+                            <td>陡峭</td>
+                            <td>中等</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h2>架构与工作流程</h2>
+                <div class="architecture">
+                    <h3>MLIR重写系统架构</h3>
+                    <div class="svg-container">
+                        <svg width="800" height="400" viewBox="0 0 800 400">
+                            <!-- 背景 -->
+                            <rect x="0" y="0" width="800" height="400" fill="#f8f9ff" rx="10"/>
+                            
+                            <!-- 输入IR -->
+                            <rect x="50" y="150" width="120" height="60" rx="8" fill="#4361ee" opacity="0.9"/>
+                            <text x="110" y="185" fill="white" text-anchor="middle" font-weight="bold">输入IR</text>
+                            
+                            <!-- 箭头 -->
+                            <path d="M180 180 L230 180" stroke="#3a0ca3" stroke-width="3" marker-end="url(#arrow)"/>
+                            
+                            <!-- 贪婪重写器 -->
+                            <rect x="250" y="100" width="300" height="200" rx="12" fill="white" stroke="#f72585" stroke-width="3"/>
+                            <text x="400" y="140" fill="#3a0ca3" text-anchor="middle" font-size="18" font-weight="bold">贪婪重写器 (Greedy Rewriter)</text>
+                            
+                            <!-- 模式匹配引擎 -->
+                            <rect x="280" y="170" width="120" height="60" rx="8" fill="#4cc9f0"/>
+                            <text x="340" y="205" fill="white" text-anchor="middle" font-weight="bold">模式匹配</text>
+                            
+                            <!-- 重写规则库 -->
+                            <rect x="420" y="170" width="120" height="60" rx="8" fill="#ff9e00"/>
+                            <text x="480" y="205" fill="white" text-anchor="middle" font-weight="bold">规则库</text>
+                            
+                            <!-- 连接线 -->
+                            <path d="M340 200 L420 200" stroke="#444" stroke-width="2" stroke-dasharray="5,5"/>
+                            
+                            <!-- 箭头 -->
+                            <path d="M580 180 L630 180" stroke="#3a0ca3" stroke-width="3" marker-end="url(#arrow)"/>
+                            
+                            <!-- 输出IR -->
+                            <rect x="650" y="150" width="120" height="60" rx="8" fill="#4361ee" opacity="0.9"/>
+                            <text x="710" y="185" fill="white" text-anchor="middle" font-weight="bold">输出IR</text>
+                            
+                            <!-- 规则类型 -->
+                            <rect x="280" y="250" width="240" height="40" rx="6" fill="#eef2ff" stroke="#3a0ca3" stroke-width="1"/>
+                            <text x="400" y="275" fill="#3a0ca3" text-anchor="middle" font-size="14">
+                                <tspan x="400" dy="0">DRR规则 + C++模式</tspan>
+                            </text>
+                            
+                            <!-- 箭头定义 -->
+                            <defs>
+                                <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                    <path d="M0,0 L0,6 L9,3 z" fill="#3a0ca3"/>
+                                </marker>
+                            </defs>
+                        </svg>
+                    </div>
+                    <p>贪婪重写器作为驱动引擎，从工作列表中选取操作，通过模式匹配引擎查找适用的重写规则（包括DRR和C++模式），应用转换后更新工作列表，迭代直到达到不动点。</p>
+                </div>
+            </section>
+
+            <section>
+                <h2>最佳实践与工程建议</h2>
+                <div class="card-container">
+                    <div class="card">
+                        <h3>规则设计原则</h3>
+                        <ol>
+                            <li><strong>单一职责</strong>：每个规则只完成一个明确的转换</li>
+                            <li><strong>幂等性</strong>：规则多次应用结果应一致</li>
+                            <li><strong>局部性</strong>：尽量基于局部信息做决策</li>
+                            <li><strong>渐进式</strong>：复杂转换分解为多个简单规则</li>
+                        </ol>
+                    </div>
+                    <div class="card">
+                        <h3>性能优化策略</h3>
+                        <ol>
+                            <li><strong>模式优先级</strong>：为高频规则设置更高优先级</li>
+                            <li><strong>早期剪枝</strong>：在匹配早期排除不可能情况</li>
+                            <li><strong>批量重写</strong>：合并相关重写减少迭代次数</li>
+                            <li><strong>缓存结果</strong>：缓存昂贵计算或匹配结果</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <div class="note">
+                    <strong>工程经验：</strong>在实际编译器开发中，通常混合使用DRR和C++模式。DRR用于处理大量简单、规范的转换，保持代码简洁；C++模式处理需要复杂逻辑或特殊处理的转换。贪婪重写器的配置（如最大迭代次数、区域限制）对编译时间和转换结果有重要影响，需要根据具体场景调整。
+                </div>
+            </section>
+
+            <section>
+                <h2>应用场景示例</h2>
+                <div class="card-container">
+                    <div class="card">
+                        <h3>代数化简</h3>
+                        <p>使用DRR实现常量折叠、恒等变换等代数化简规则：</p>
+                        <ul>
+                            <li>add(x, 0) → x</li>
+                            <li>mul(x, 1) → x</li>
+                            <li>add(const1, const2) → const3</li>
+                            <li>and(x, x) → x</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>规范化</h3>
+                        <p>将操作转换为规范形式，便于后续优化：</p>
+                        <ul>
+                            <li>统一操作数顺序</li>
+                            <li>消除冗余转换</li>
+                            <li>标准化类型表示</li>
+                            <li>扁平化嵌套结构</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Lowering准备</h3>
+                        <p>为跨层次lowering做准备：</p>
+                        <ul>
+                            <li>分解复合操作</li>
+                            <li>插入显式转换</li>
+                            <li>调整内存布局</li>
+                            <li>处理平台特定约束</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

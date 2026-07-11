@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：递归神经网络与动态控制流编译</title>
+    <style>
+        :root {
+            --primary: #FF6B8B;
+            --secondary: #6A67CE;
+            --accent: #00C9B7;
+            --light: #FFF9F5;
+            --dark: #2D3047;
+            --text: #333344;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, var(--light) 0%, #E6F7FF 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(45, 48, 71, 0.15);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            border: 8px solid var(--accent);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .title {
+            color: var(--primary);
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            font-weight: 800;
+            text-shadow: 3px 3px 0px rgba(255, 107, 139, 0.1);
+        }
+        .subtitle {
+            color: var(--secondary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        .decoration {
+            height: 10px;
+            width: 200px;
+            background: linear-gradient(to right, var(--primary), var(--accent));
+            margin: 0 auto 30px;
+            border-radius: 10px;
+        }
+        .content-section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: #F9FBFF;
+            border-radius: 20px;
+            border-left: 6px solid var(--secondary);
+        }
+        h2 {
+            color: var(--dark);
+            margin-bottom: 20px;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2 svg {
+            width: 32px;
+            height: 32px;
+            fill: var(--accent);
+        }
+        p {
+            line-height: 1.8;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+        .highlight {
+            background: linear-gradient(120deg, rgba(255,107,139,0.15) 0%, rgba(106,103,206,0.15) 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 25px 0;
+            border: 2px dashed var(--primary);
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+            line-height: 1.7;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+        }
+        th {
+            background: var(--secondary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #E0E6FF;
+            background: white;
+        }
+        tr:nth-child(even) td {
+            background: #F5F8FF;
+        }
+        .architecture {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 25px;
+            border-top: 3px solid var(--accent);
+            color: var(--dark);
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 3px;
+            text-shadow: 2px 2px 0px rgba(0,201,183,0.2);
+        }
+        .color-box {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 5px;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .primary-color { background: var(--primary); }
+        .secondary-color { background: var(--secondary); }
+        .accent-color { background: var(--accent); }
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.1;
+            z-index: 0;
+        }
+        .bubble-1 {
+            width: 150px;
+            height: 150px;
+            background: var(--primary);
+            top: -50px;
+            right: -50px;
+        }
+        .bubble-2 {
+            width: 120px;
+            height: 120px;
+            background: var(--secondary);
+            bottom: -40px;
+            left: -40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="bubble bubble-1"></div>
+        <div class="bubble bubble-2"></div>
+        
+        <div class="header">
+            <h1 class="title">递归神经网络与动态控制流编译</h1>
+            <div class="decoration"></div>
+            <p class="subtitle">MLIR中动态图表示、循环展开与内存生命周期管理</p>
+        </div>
+
+        <div class="content-section">
+            <h2>
+                <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/></svg>
+                核心挑战：动态图与静态编译
+            </h2>
+            <p>递归神经网络（RNN）及其变体（LSTM、GRU）引入了动态控制流，如可变长度序列和条件执行。传统静态图编译器难以直接处理此类动态性。MLIR通过多层中间表示，提供了灵活的抽象来桥接动态语义与静态优化。</p>
+            
+            <div class="highlight">
+                <p><strong>关键矛盾：</strong>动态图的运行时灵活性 vs. 静态编译的性能优化需求。MLIR的解决方案是提供<strong>可渐进 lowering 的抽象</strong>，允许在高级别保留动态语义，在低级别进行静态化与优化。</p>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>
+                <svg viewBox="0 0 24 24"><path d="M21,6H3C1.9,6 1,6.9 1,8V16C1,17.1 1.9,18 3,18H21C22.1,18 23,17.1 23,16V8C23,6.9 22.1,6 21,6M21,16H3V8H21V16M5,15H8V9H5V15M10,15H14V9H10V15M16,15H19V9H16V15Z"/></svg>
+                MLIR 表示动态控制流
+            </h2>
+            <p>MLIR 使用 <strong>Region</strong>、<strong>Block</strong> 和 <strong>Operation</strong> 作为核心结构，可以自然表示控制流图。</p>
+            <ul>
+                <li><span class="color-box primary-color"></span> <strong>scf.while / scf.for</strong>：用于结构化循环表示，支持迭代间依赖分析。</li>
+                <li><span class="color-box secondary-color"></span> <strong>cf.cond_br / cf.br</strong>：用于非条件与条件分支，表示底层控制流。</li>
+                <li><span class="color-box accent-color"></span> <strong>自定义 Dialect</strong>：可定义如 <code>rnn.step</code> 等操作，捕获高级语义。</li>
+            </ul>
+            
+            <div class="architecture">
+                <svg width="600" height="220" viewBox="0 0 600 220">
+                    <rect x="50" y="30" width="120" height="60" rx="10" fill="#FF6B8B" opacity="0.9" stroke="#2D3047" stroke-width="2"/>
+                    <text x="110" y="65" text-anchor="middle" fill="white" font-weight="600">动态RNN图</text>
+                    <rect x="220" y="30" width="120" height="60" rx="10" fill="#6A67CE" opacity="0.9" stroke="#2D3047" stroke-width="2"/>
+                    <text x="280" y="65" text-anchor="middle" fill="white" font-weight="600">MLIR SCF/CF</text>
+                    <rect x="390" y="30" width="120" height="60" rx="10" fill="#00C9B7" opacity="0.9" stroke="#2D3047" stroke-width="2"/>
+                    <text x="450" y="65" text-anchor="middle" fill="white" font-weight="600">静态优化形式</text>
+                    <path d="M170 60 L220 60" stroke="#2D3047" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M340 60 L390 60" stroke="#2D3047" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M50 90 L50 150 L550 150 L550 90" stroke="#2D3047" stroke-width="2" fill="none"/>
+                    <text x="300" y="140" text-anchor="middle" fill="#2D3047" font-size="14">渐进Lowering与优化过程</text>
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#2D3047"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>
+                <svg viewBox="0 0 24 24"><path d="M4,4H20A2,2 0 0,1 22,6V18A2,2 0 0,1 20,20H4A2,2 0 0,1 2,18V6A2,2 0 0,1 4,4M4,6V18H11V6H4M20,18V6H18.76C19,6.54 18.95,7.07 18.95,7.13C18.88,7.8 18.41,8.5 18.24,8.75L15.91,11.3L19.23,11.28L19.24,12.5L14.04,12.47L14,11.47C14,11.47 17.05,8.24 17.2,7.95C17.34,7.67 17.91,6 16.5,6C15.27,6.05 15.41,7.3 15.41,7.3L13.87,7.31C13.87,7.31 13.88,6.65 14.25,6H13V18H15.58L15.57,17.14L16.54,17.13C16.54,17.13 17.45,16.97 17.46,16.08C17.5,15.08 16.65,15.08 16.5,15.08C16.37,15.08 15.43,15.13 15.43,15.95H13.91C13.91,15.95 13.95,13.89 16.5,13.89C19.1,13.89 18.96,15.91 18.96,15.91C18.96,15.91 19,17.16 17.85,17.63L18.37,18H20M8.92,16H7.42V10.2L5.62,10.76V9.53L8.76,8.41H8.92V16Z"/></svg>
+                循环展开与流水线优化
+            </h2>
+            <p>对于已知迭代边界或通过分析可静态确定的循环，MLIR 可以进行循环展开（Loop Unrolling）和流水线（Pipelining）优化。</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>优化技术</th>
+                        <th>MLIR 表示/操作</th>
+                        <th>收益与挑战</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>完全循环展开</strong></td>
+                        <td><code>scf.for</code> → 静态展开的序列</td>
+                        <td>消除循环开销，暴露指令级并行；可能增大代码体积。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>部分循环展开</strong></td>
+                        <td><code>loop.unroll</code> 变换 + <code>scf.for</code></td>
+                        <td>平衡开销与代码体积，提高缓存利用率。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>软件流水线</strong></td>
+                        <td><code>affine.pipeline</code> 或自定义调度</td>
+                        <td>重叠不同迭代执行，隐藏指令延迟；需要精细的依赖分析。</td>
+                    </tr>
+                    <tr>
+                        <td><strong>动态循环边界处理</strong></td>
+                        <td><code>scf.while</code> + 边界推测</td>
+                        <td>结合运行时检查与静态优化路径。</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="content-section">
+            <h2>
+                <svg viewBox="0 0 24 24"><path d="M12,3C7.58,3 4,4.79 4,7C4,9.21 7.58,11 12,11C16.42,11 20,9.21 20,7C20,4.79 16.42,3 12,3M4,9V12C4,14.21 7.58,16 12,16C16.42,16 20,14.21 20,12V9C20,11.21 16.42,13 12,13C7.58,13 4,11.21 4,9M4,14V17C4,19.21 7.58,21 12,21C16.42,21 20,19.21 20,17V14C20,16.21 16.42,18 12,18C7.58,18 4,16.21 4,14Z"/></svg>
+                内存生命周期管理
+            </h2>
+            <p>动态控制流使得内存分配与释放时机变得复杂。MLIR 提供了多层工具来管理内存生命周期。</p>
+            <ol>
+                <li><strong>Bufferization 阶段</strong>：将基于值的张量语义转换为基于指针的内存缓冲区（memref），并插入必要的拷贝。</li>
+                <li><strong>内存提升（Memory Promotion）</strong>：将堆栈或堆分配提升到更快的存储层次，如通过 <code>memref.subview</code> 共享内存。</li>
+                <li><strong>别名分析（Alias Analysis）</strong>：确定不同内存引用是否指向同一区域，以安全地进行优化。</li>
+                <li><strong>引用计数与垃圾收集抽象</strong>：在高级别Dialect中建模，并逐步Lowering到显式管理操作。</li>
+            </ol>
+            <div class="highlight">
+                <p><strong>工程实践提示：</strong> 使用 MLIR 的 <code>memref</code> Dialect 进行显式内存操作。结合 <code>linalg</code> 和 <code>affine</code> Dialect 进行循环变换与数据局部性优化，可以显著提升RNN在特定硬件（如GPU、TPU）上的执行效率。</p>
+            </div>
+        </div>
+
+        <div class="content-section">
+            <h2>
+                <svg viewBox="0 0 24 24"><path d="M9,3V18H12V3H9M12,5L16,18L19,17L15,4L12,5M5,5V18H8V5H5M3,19V21H21V19H3Z"/></svg>
+                总结与最佳实践
+            </h2>
+            <ul>
+                <li><strong>分层设计</strong>：在高级别保留动态语义，逐步Lowering到静态可优化形式。</li>
+                <li><strong>混合策略</strong>：结合静态展开（对短序列）与动态循环（对长序列或可变序列）。</li>
+                <li><strong>内存规划先行</strong>：在Lowering早期进行Bufferization和粗略的内存规划。</li>
+                <li><strong>利用现有Dialect</strong>：优先使用 <code>scf</code>, <code>cf</code>, <code>memref</code>, <code>linalg</code> 等稳定Dialect，必要时扩展自定义操作。</li>
+                <li><strong> profiling 驱动优化</strong>：结合运行时信息反馈，指导静态优化决策（如展开因子）。</li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

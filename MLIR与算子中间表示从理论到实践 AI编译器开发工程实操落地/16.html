@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：GPU与并行计算方言</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FF;
+            --dark: #2A2D43;
+            --text: #333344;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            border: 8px solid white;
+        }
+        header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        header .subtitle {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 80px;
+            background: var(--secondary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            box-shadow: 0 10px 20px rgba(255, 101, 132, 0.4);
+        }
+        .content {
+            padding: 60px 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);
+            border-top: 6px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--secondary);
+        }
+        .card p, .card li {
+            line-height: 1.7;
+            font-size: 1.05rem;
+            margin-bottom: 15px;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 18px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5f1;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8faff;
+        }
+        .architecture {
+            grid-column: 1 / -1;
+            background: linear-gradient(145deg, #ffffff, #f0f2ff);
+            padding: 30px;
+            border-radius: 20px;
+            text-align: center;
+        }
+        .architecture h2 {
+            color: var(--dark);
+            margin-bottom: 30px;
+        }
+        .architecture svg {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+        }
+        footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+        .highlight {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+        .keyword {
+            display: inline-block;
+            background: #e6f7ff;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 0 5px 5px 0;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>GPU与并行计算方言</h1>
+            <div class="subtitle">
+                深入探索MLIR中的GPU方言、NVVM/ROCDL后端、并行循环映射与共享内存优化，构建高性能AI编译器的核心能力。
+            </div>
+            <div class="decoration">16</div>
+        </header>
+
+        <div class="content">
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/></svg>GPU方言 (GPU Dialect)</h2>
+                <p>GPU方言是MLIR中用于抽象和表示GPU计算与内存层次结构的核心模块。它提供了一套与硬件无关的操作，允许编译器在高级别进行优化和代码变换。</p>
+                <ul>
+                    <li><span class="highlight">核心抽象</span>：线程网格(Grid)、线程块(Block)、线程(Thread)的三级并行模型。</li>
+                    <li><span class="highlight">内存操作</span>：支持全局内存、共享内存、常量内存的加载/存储操作。</li>
+                    <li><span class="highlight">同步操作</span>：如<code class="keyword">gpu.barrier</code>，用于线程块内的同步。</li>
+                    <li><span class="highlight">启动机制</span>：通过<code class="keyword">gpu.launch</code>操作描述内核启动参数。</li>
+                </ul>
+                <p>GPU方言作为中间表示，隔离了上层算法描述与底层硬件特定的代码生成。</p>
+            </div>
+
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M5,3H19C20.1,3 21,3.9 21,5V19C21,20.1 20.1,21 19,21H5C3.9,21 3,20.1 3,19V5C3,3.9 3.9,3 5,3M13.96,12.29L11.21,11.18L8.5,10.46L8.33,10.41L7.14,10.08L5,9V15.33L6,15.59L8.5,16.29L11.21,17.19L13.96,18.09C14.15,18.16 14.34,18.23 14.5,18.28C14.67,18.33 14.84,18.38 15,18.41L15,5.59C14.84,5.62 14.67,5.67 14.5,5.72C14.34,5.77 14.15,5.84 13.96,5.91L13.96,12.29Z"/></svg>NVVM与ROCDL后端</h2>
+                <p>将MLIR GPU方言降低到特定GPU厂商的底层IR，是实现高性能代码生成的关键步骤。</p>
+                <table>
+                    <thead>
+                        <tr><th>后端</th><th>目标平台</th><th>底层IR</th><th>关键特性</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td><strong>NVVM</strong></td><td>NVIDIA GPU</td><td>LLVM NVPTX IR</td><td>支持CUDA特性，如Warp级操作、Tensor Core指令。</td></tr>
+                        <tr><td><strong>ROCDL</strong></td><td>AMD GPU</td><td>LLVM AMDGPU IR</td><td>支持ROCm平台，优化GCN架构的向量化与内存访问。</td></tr>
+                    </tbody>
+                </table>
+                <p>转换过程包括：内存空间映射、内置函数调用映射、线程索引转换、优化特定硬件指令选择。</p>
+            </div>
+
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M19,11H11V17H19V11M23,19V5C23,3.88 22.1,3 21,3H3A2,2 0 0,0 1,5V19A2,2 0 0,0 3,21H21A2,2 0 0,0 23,19M21,19H3V5H21V19Z"/></svg>并行循环映射</h2>
+                <p>将高级别的循环并行结构（如Affine循环、SCF循环）映射到GPU的并行执行模型。</p>
+                <ol>
+                    <li><span class="highlight">循环展开与平铺</span>：将多维循环转换为适合GPU线程网格的布局。</li>
+                    <li><span class="highlight">层次映射</span>：将循环维度映射到Grid、Block和Thread维度。</li>
+                    <li><span class="highlight">数据局部性分析</span>：优化内存访问模式，减少全局内存延迟。</li>
+                    <li><span class="highlight">依赖检查</span>：确保并行化不会破坏数据依赖关系。</li>
+                </ol>
+                <p>常用模式：使用<code class="keyword">scf.parallel</code> + <code class="keyword">gpu.launch</code>的组合，或通过<code class="keyword">affine</code>方言的自动映射转换。</p>
+            </div>
+
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M20,17A2,2 0 0,0 22,15V4A2,2 0 0,0 20,2H9.46C9.2,2.54 9,3.22 9,4H20V15H11V17M15,7V9H9V22H7V16H5V22H3V14H1.5V9A2,2 0 0,1 3.5,7H15M8,4A2,2 0 0,1 6,6A2,2 0 0,1 4,4A2,2 0 0,1 6,2A2,2 0 0,1 8,4Z"/></svg>共享内存优化</h2>
+                <p>共享内存是GPU性能优化的核心，其访问速度远快于全局内存。</p>
+                <ul>
+                    <li><span class="highlight">数据暂存</span>：将全局内存中的数据块加载到共享内存中，供线程块内所有线程复用。</li>
+                    <li><span class="highlight">避免Bank冲突</span>：设计访问模式，确保同一时刻访问不同的内存Bank。</li>
+                    <li><span class="highlight">合并访问</span>：确保线程束(Warp)内的访问是连续的，以实现内存事务合并。</li>
+                    <li><span class="highlight">同步放置</span>：在数据加载和存储后正确插入屏障，确保数据一致性。</li>
+                </ul>
+                <p>MLIR中可通过<code class="keyword">gpu.alloc_shared</code>和显式的内存拷贝操作来实现。</p>
+            </div>
+
+            <div class="architecture">
+                <h2>GPU代码生成架构图</h2>
+                <svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#6C63FF" />
+                            <stop offset="100%" stop-color="#36D1DC" />
+                        </linearGradient>
+                    </defs>
+                    <!-- 上层：MLIR -->
+                    <rect x="50" y="30" width="700" height="50" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                    <text x="400" y="62" text-anchor="middle" fill="white" font-size="18" font-weight="bold">MLIR 上层方言 (Affine, SCF, Linalg)</text>
+                    <polygon points="400,80 390,100 410,100" fill="#6C63FF"/>
+                    <!-- 中层：GPU方言 -->
+                    <rect x="150" y="110" width="500" height="50" rx="10" fill="#FF6584" opacity="0.9"/>
+                    <text x="400" y="142" text-anchor="middle" fill="white" font-size="18" font-weight="bold">GPU 方言 (抽象并行与内存)</text>
+                    <polygon points="400,160 390,180 410,180" fill="#FF6584"/>
+                    <!-- 下层：后端 -->
+                    <rect x="100" y="190" width="300" height="50" rx="10" fill="#36D1DC" opacity="0.9"/>
+                    <text x="250" y="222" text-anchor="middle" fill="white" font-size="16" font-weight="bold">NVVM 后端 (NVIDIA)</text>
+                    <rect x="400" y="190" width="300" height="50" rx="10" fill="#FFB347" opacity="0.9"/>
+                    <text x="550" y="222" text-anchor="middle" fill="white" font-size="16" font-weight="bold">ROCDL 后端 (AMD)</text>
+                    <!-- 箭头 -->
+                    <path d="M 400 100 L 400 110" stroke="#2A2D43" stroke-width="2" fill="none"/>
+                    <path d="M 400 160 L 400 190" stroke="#2A2D43" stroke-width="2" fill="none"/>
+                </svg>
+                <p style="margin-top:20px;">MLIR GPU编译流程：从高级计算描述，经过GPU方言抽象，最终针对不同硬件平台生成优化的底层IR。</p>
+            </div>
+        </div>
+
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

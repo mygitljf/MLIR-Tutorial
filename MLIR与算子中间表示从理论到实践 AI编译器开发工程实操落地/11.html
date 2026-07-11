@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：数据流与控制流建模</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --shadow: rgba(108, 99, 255, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: var(--text);
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px var(--shadow);
+            overflow: hidden;
+            border: 8px solid white;
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 40px;
+            background: var(--secondary);
+            border-radius: 20px;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-left: 6px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--secondary);
+        }
+        .card p, .card li {
+            line-height: 1.7;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #FFEB3B 0%, #FFEB3B 100%);
+            background-repeat: no-repeat;
+            background-size: 100% 0.4em;
+            background-position: 0 88%;
+            font-weight: 600;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .architecture {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px var(--shadow);
+        }
+        .architecture svg {
+            width: 100%;
+            height: auto;
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+        .keyword {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 0 5px 5px 0;
+        }
+        .code {
+            font-family: 'Courier New', monospace;
+            background: #2D3047;
+            color: #36D1DC;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow-x: auto;
+            white-space: pre;
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>数据流与控制流建模</h1>
+            <p>SSA形式、基本块、控制流操作（cf方言）、区域（Region）的语义</p>
+            <div class="decoration"></div>
+        </div>
+        
+        <div class="content">
+            <div class="card">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/></svg>
+                    SSA（静态单赋值）形式
+                </h2>
+                <p><span class="highlight">SSA（Static Single Assignment）</span>是编译器中间表示的核心属性，它要求每个变量只被赋值一次，从而简化数据流分析。</p>
+                <ul>
+                    <li><strong>唯一赋值</strong>：每个变量在定义后不再被重新定义。</li>
+                    <li><strong>Φ（Phi）函数</strong>：在控制流交汇处插入，用于合并不同路径的值。</li>
+                    <li><strong>优势</strong>：消除歧义，使数据流关系显式化，优化更安全。</li>
+                </ul>
+                <div class="code">// 非SSA形式
+x = 10
+if (cond) {
+    x = 20
+}
+return x
+
+// SSA形式
+x1 = 10
+if (cond) {
+    x2 = 20
+}
+x3 = Φ(x1, x2)  // Phi函数选择x1或x2
+return x3</div>
+            </div>
+            
+            <div class="card">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M19,17H21V15H19M15,17H17V15H15M11,17H13V15H11M7,17H9V15H7M19,11H21V9H19M15,11H17V9H15M11,11H13V9H11M7,11H9V9H7M19,5H21V3H19M15,5H17V3H15M11,5H13V3H11M7,5H9V3H7M20,22H4C2.9,22 2,21.1 2,20V6C2,4.9 2.9,4 4,4H20C21.1,4 22,4.9 22,6V20C22,21.1 21.1,22 20,22Z"/></svg>
+                    基本块（Basic Block）
+                </h2>
+                <p>基本块是连续执行的指令序列，只有一个入口和一个出口，是控制流图（CFG）的节点。</p>
+                <table>
+                    <thead>
+                        <tr><th>特性</th><th>描述</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>线性执行</td><td>块内指令顺序执行，无分支</td></tr>
+                        <tr><td>单一入口</td><td>仅第一条指令可被跳转至</td></tr>
+                        <tr><td>单一出口</td><td>仅最后一条指令可跳转至其他块</td></tr>
+                        <tr><td>结构化</td><td>构成控制流图的基本单元</td></tr>
+                    </tbody>
+                </table>
+                <p>在MLIR中，基本块是区域（Region）的组成部分，包含操作列表。</p>
+            </div>
+            
+            <div class="card full-width">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M14.4,6H20V16H13L12.6,14H7V21H5V4H14L14.4,6M7,6V12H11L11.4,14H18V8H12L11.6,6H7Z"/></svg>
+                    控制流操作（cf方言）
+                </h2>
+                <p>MLIR的<strong>cf方言</strong>提供了底层、显式的控制流操作，用于构建结构化控制流。</p>
+                <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 250px;">
+                        <h3 style="color: var(--secondary); margin-bottom: 10px;">核心操作</h3>
+                        <ul>
+                            <li><span class="keyword">cf.branch</span>：无条件跳转至目标块。</li>
+                            <li><span class="keyword">cf.cond_br</span>：条件分支，根据布尔值选择路径。</li>
+                            <li><span class="keyword">cf.switch</span>：多路分支，基于整数值跳转。</li>
+                            <li><span class="keyword">cf.assert</span>：断言检查，失败时终止。</li>
+                        </ul>
+                    </div>
+                    <div style="flex: 1; min-width: 250px;">
+                        <h3 style="color: var(--secondary); margin-bottom: 10px;">语义特性</h3>
+                        <ul>
+                            <li>显式控制流图，接近硬件表示。</li>
+                            <li>支持基本块参数，实现SSA Phi的语义。</li>
+                            <li>与区域（Region）协同，构建复杂控制结构。</li>
+                            <li>常用于 lowering 到 LLVM IR 或机器码。</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="code">// cf.cond_br 示例
+%flag = arith.cmpi "eq", %a, %b
+cf.cond_br %flag, ^true_block(%value : i32), ^false_block(%value : i32)
+
+^true_block(%arg: i32):
+    // 条件为真时执行
+    cf.br ^exit
+
+^false_block(%arg: i32):
+    // 条件为假时执行
+    cf.br ^exit
+
+^exit:
+    // 合并点
+    return</div>
+            </div>
+            
+            <div class="card">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M12,6A6,6 0 0,0 6,12A6,6 0 0,0 12,18A6,6 0 0,0 18,12A6,6 0 0,0 12,6Z"/></svg>
+                    区域（Region）的语义
+                </h2>
+                <p><span class="highlight">区域</span>是MLIR中用于组织操作和基本块的容器，具有嵌套结构。</p>
+                <ul>
+                    <li><strong>层次化</strong>：区域可嵌套，形成操作-区域树。</li>
+                    <li><strong>隔离性</strong>：区域内的值默认在区域内定义和使用。</li>
+                    <li><strong>控制抽象</strong>：用于表示循环、条件等结构化控制流。</li>
+                    <li><strong>多区域</strong>：一个操作可包含多个区域（如cf.cond_br）。</li>
+                </ul>
+                <p>区域使得MLIR既能表示高层结构化控制流，也能表示底层CFG。</p>
+            </div>
+            
+            <div class="card">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M9,3V18H12V3H9M12,5L16,18L19,17L15,4L12,5M5,5V18H8V5H5M3,19V21H21V19H3Z"/></svg>
+                    关键概念关系
+                </h2>
+                <p>SSA、基本块、cf操作和区域共同构成了MLIR控制流与数据流的建模基础。</p>
+                <ol>
+                    <li>SSA形式保证了数据流的清晰性。</li>
+                    <li>基本块是控制流的基本执行单元。</li>
+                    <li>cf方言提供了显式的控制流操作。</li>
+                    <li>区域为操作和基本块提供了结构化容器。</li>
+                </ol>
+                <p>这些元素协同工作，使得MLIR能够灵活表示从高层算法到底层硬件的各种抽象。</p>
+            </div>
+            
+            <div class="architecture full-width">
+                <h2 style="color: var(--primary); margin-bottom: 30px; text-align: center;">MLIR控制流建模架构</h2>
+                <svg viewBox="0 0 800 300">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#6C63FF" />
+                            <stop offset="100%" stop-color="#36D1DC" />
+                        </linearGradient>
+                        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#FF6584" />
+                            <stop offset="100%" stop-color="#FFEB3B" />
+                        </linearGradient>
+                    </defs>
+                    
+                    <!-- 高层次区域 -->
+                    <rect x="50" y="50" width="200" height="200" rx="15" fill="url(#grad1)" opacity="0.8" stroke="#2D3047" stroke-width="2"/>
+                    <text x="150" y="80" text-anchor="middle" fill="white" font-size="18" font-weight="bold">区域 (Region)</text>
+                    
+                    <!-- 基本块 -->
+                    <rect x="100" y="110" width="100" height="60" rx="10" fill="white" stroke="#36D1DC" stroke-width="2"/>
+                    <text x="150" y="145" text-anchor="middle" fill="#2D3047" font-size="14">基本块 1</text>
+                    
+                    <rect x="100" y="180" width="100" height="60" rx="10" fill="white" stroke="#36D1DC" stroke-width="2"/>
+                    <text x="150" y="215" text-anchor="middle" fill="#2D3047" font-size="14">基本块 2</text>
+                    
+                    <!-- SSA值流 -->
+                    <path d="M250 140 L350 140" stroke="#FF6584" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                    <circle cx="300" cy="140" r="15" fill="white" stroke="#FF6584" stroke-width="2"/>
+                    <text x="300" y="145" text-anchor="middle" fill="#FF6584" font-size="12">Φ</text>
+                    
+                    <!-- cf操作 -->
+                    <rect x="400" y="50" width="200" height="200" rx="15" fill="url(#grad2)" opacity="0.8" stroke="#2D3047" stroke-width="2"/>
+                    <text x="500" y="80" text-anchor="middle" fill="white" font-size="18" font-weight="bold">cf 方言</text>
+                    
+                    <rect x="450" y="120" width="100" height="40" rx="8" fill="white" stroke="#FF6584" stroke-width="2"/>
+                    <text x="500" y="145" text-anchor="middle" fill="#2D3047" font-size="12">cf.cond_br</text>
+                    
+                    <rect x="450" y="180" width="100" height="40" rx="8" fill="white" stroke="#FF6584" stroke-width="2"/>
+                    <text x="500" y="205" text-anchor="middle" fill="#2D3047" font-size="12">cf.branch</text>
+                    
+                    <!-- 箭头 -->
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#FF6584"/>
+                        </marker>
+                    </defs>
+                    
+                    <!-- 连接线 -->
+                    <path d="M250 140 L350 140" stroke="#FF6584" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M250 200 L350 200" stroke="#36D1DC" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    
+                    <!-- 标签 -->
+                    <text x="150" y="280" text-anchor="middle" fill="#2D3047" font-size="16" font-weight="bold">结构化容器</text>
+                    <text x="500" y="280" text-anchor="middle" fill="#2D3047" font-size="16" font-weight="bold">显式控制流</text>
+                    <text x="300" y="40" text-anchor="middle" fill="#6C63FF" font-size="16" font-weight="bold">SSA 数据流</text>
+                </svg>
+            </div>
+        </div>
+        
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

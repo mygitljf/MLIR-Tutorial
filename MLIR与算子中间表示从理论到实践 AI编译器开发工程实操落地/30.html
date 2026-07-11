@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自定义转换工具链：从MLIR到可执行文件</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background-color: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(108, 99, 255, 0.2);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .title {
+            color: var(--primary);
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: var(--secondary);
+            font-size: 1.4rem;
+            font-weight: 500;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(108, 99, 255, 0.1) 0%, transparent 70%);
+            top: -150px;
+            right: -150px;
+            z-index: 0;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            border-radius: 18px;
+            background-color: var(--light);
+            border-left: 6px solid var(--primary);
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section-title {
+            color: var(--dark);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--secondary);
+        }
+        .section-content {
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+        .highlight {
+            color: var(--primary);
+            font-weight: 700;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid var(--accent);
+        }
+        .card-title {
+            font-size: 1.4rem;
+            color: var(--dark);
+            margin-bottom: 15px;
+        }
+        .card-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        .card-list li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+            display: flex;
+            align-items: center;
+        }
+        .card-list li:before {
+            content: "✓";
+            color: var(--secondary);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+        }
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+        .architecture {
+            width: 100%;
+            height: 300px;
+            margin: 30px auto;
+            background: #f8f9ff;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 25px;
+            border-top: 2px solid #eee;
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.03);
+        }
+        .step-number {
+            background: var(--primary);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        .step-content {
+            flex: 1;
+        }
+        .step-title {
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="decoration"></div>
+        <div class="header">
+            <h1 class="title">自定义转换工具链</h1>
+            <p class="subtitle">设计领域特定编译器（DSL）从MLIR到可执行文件的完整流程</p>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/></svg>
+                    核心概念
+                </h2>
+                <p class="section-content">
+                    领域特定编译器（DSL Compiler）是针对特定应用领域设计的编译器，它利用<span class="highlight">MLIR（多级中间表示）</span>作为核心基础设施，将高级领域特定语言转换为高效的可执行代码。本课程重点讲解如何构建从自定义DSL到MLIR，再通过多层 lowering 最终生成目标代码的完整工具链。
+                </p>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3 class="card-title">工具链核心优势</h3>
+                    <ul class="card-list">
+                        <li>利用MLIR可重用基础设施</li>
+                        <li>支持渐进式 lowering 与优化</li>
+                        <li>跨硬件后端的代码生成</li>
+                        <li>领域特定优化与变换</li>
+                        <li>模块化与可扩展设计</li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <h3 class="card-title">关键技术组件</h3>
+                    <ul class="card-list">
+                        <li>自定义 Dialect 定义</li>
+                        <li>模式匹配与重写规则</li>
+                        <li>转换通道（Pass）管理</li>
+                        <li>目标后端对接（LLVM/GPU等）</li>
+                        <li>运行时系统集成</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M14,17H12V15H10V13H12V15H14M14,9H12V11H14V13H12V11H10V9H12V7H10V5H12V7H14M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3Z"/></svg>
+                    完整转换流程
+                </h2>
+                
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <div class="step-title">DSL 前端解析</div>
+                        <div>使用自定义语法解析器或现有框架（如ANTLR）将领域特定语言转换为AST（抽象语法树）。</div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <div class="step-title">MLIR Dialect 生成</div>
+                        <div>将AST转换为自定义的MLIR Dialect表示，捕获领域特定语义与操作。</div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <div class="step-title">领域特定优化</div>
+                        <div>在自定义Dialect级别应用领域知识驱动的优化变换，如算子融合、特殊化简等。</div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <div class="step-title">Lowering 到标准Dialect</div>
+                        <div>通过模式重写将自定义操作逐步转换为MLIR标准操作（如arith、memref、scf等）。</div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <div class="step-title">LLVM IR 生成</div>
+                        <div>使用MLIR的LLVM Dialect转换通道，将MLIR模块转换为LLVM中间表示。</div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <div class="step-number">6</div>
+                    <div class="step-content">
+                        <div class="step-title">目标代码生成与链接</div>
+                        <div>调用LLVM后端生成目标机器码，链接运行时库，最终生成可执行文件或库。</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M2,2H4V20H22V22H2V2M7,10H9V17H7V10M11,10H13V17H11V10M15,10H17V17H15V10Z"/></svg>
+                    工具链架构图
+                </h2>
+                <div class="architecture">
+                    <svg viewBox="0 0 800 250" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#6C63FF" />
+                                <stop offset="100%" stop-color="#36D1DC" />
+                            </linearGradient>
+                        </defs>
+                        
+                        <rect x="50" y="30" width="120" height="60" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                        <text x="110" y="65" text-anchor="middle" fill="white" font-weight="bold">DSL 源码</text>
+                        <path d="M170 60 L210 60" stroke="#6C63FF" stroke-width="3" marker-end="url(#arrow)"/>
+                        
+                        <rect x="210" y="30" width="120" height="60" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                        <text x="270" y="65" text-anchor="middle" fill="white" font-weight="bold">前端解析</text>
+                        <path d="M330 60 L370 60" stroke="#6C63FF" stroke-width="3" marker-end="url(#arrow)"/>
+                        
+                        <rect x="370" y="30" width="120" height="60" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                        <text x="430" y="65" text-anchor="middle" fill="white" font-weight="bold">自定义Dialect</text>
+                        <path d="M490 60 L530 60" stroke="#6C63FF" stroke-width="3" marker-end="url(#arrow)"/>
+                        
+                        <rect x="530" y="30" width="120" height="60" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                        <text x="590" y="65" text-anchor="middle" fill="white" font-weight="bold">MLIR 优化</text>
+                        
+                        <rect x="370" y="120" width="120" height="60" rx="10" fill="#FF6584" opacity="0.9"/>
+                        <text x="430" y="155" text-anchor="middle" fill="white" font-weight="bold">LLVM IR</text>
+                        
+                        <rect x="530" y="120" width="120" height="60" rx="10" fill="#FF6584" opacity="0.9"/>
+                        <text x="590" y="155" text-anchor="middle" fill="white" font-weight="bold">目标代码</text>
+                        
+                        <rect x="630" y="120" width="120" height="60" rx="10" fill="#FF6584" opacity="0.9"/>
+                        <text x="690" y="155" text-anchor="middle" fill="white" font-weight="bold">可执行文件</text>
+                        
+                        <path d="M490 90 L490 120" stroke="#36D1DC" stroke-width="3" stroke-dasharray="5,5"/>
+                        <path d="M590 90 L590 120" stroke="#36D1DC" stroke-width="3" stroke-dasharray="5,5"/>
+                        <path d="M650 90 L650 120" stroke="#36D1DC" stroke-width="3" stroke-dasharray="5,5"/>
+                        
+                        <path d="M370 120 L530 120" stroke="#FF6584" stroke-width="3" marker-end="url(#arrow)"/>
+                        <path d="M530 120 L630 120" stroke="#FF6584" stroke-width="3" marker-end="url(#arrow)"/>
+                        
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#6C63FF"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M9,3V18H12V3H9M12,5L16,18L19,17L15,4L12,5M5,5V18H8V5H5M3,19V21H21V19H3Z"/></svg>
+                    关键转换通道（Pass）配置
+                </h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>转换阶段</th>
+                            <th>主要Pass</th>
+                            <th>功能描述</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>方言转换</strong></td>
+                            <td>convert-custom-to-std</td>
+                            <td>将自定义操作转换为MLIR标准操作集</td>
+                        </tr>
+                        <tr>
+                            <td><strong>循环优化</strong></td>
+                            <td>loop-invariant-code-motion</td>
+                            <td>移出循环不变式代码，提升执行效率</td>
+                        </tr>
+                        <tr>
+                            <td><strong>内存优化</strong></td>
+                            <td>bufferization, memref-expand</td>
+                            <td>内存分配优化与地址计算简化</td>
+                        </tr>
+                        <tr>
+                            <td><strong>LLVM降级</strong></td>
+                            <td>convert-to-llvm</td>
+                            <td>将MLIR操作最终转换为LLVM IR</td>
+                        </tr>
+                        <tr>
+                            <td><strong>后端优化</strong></td>
+                            <td>llvm-optimize</td>
+                            <td>应用LLVM优化管道进行机器无关优化</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,15C12.81,15 13.5,14.7 14.11,14.11C14.7,13.5 15,12.81 15,12C15,11.19 14.7,10.5 14.11,9.89C13.5,9.3 12.81,9 12,9C11.19,9 10.5,9.3 9.89,9.89C9.3,10.5 9,11.19 9,12C9,12.81 9.3,13.5 9.89,14.11C10.5,14.7 11.19,15 12,15M12,2C14.75,2 17.1,3 19.05,4.95C21,6.9 22,9.25 22,12V13.45C22,14.45 21.65,15.3 21,16C20.3,16.67 19.5,17 18.5,17C17.3,17 16.31,16.5 15.56,15.5C14.56,16.5 13.38,17 12,17C10.63,17 9.45,16.5 8.46,15.54C7.5,14.55 7,13.38 7,12C7,10.63 7.5,9.45 8.46,8.46C9.45,7.5 10.63,7 12,7C13.38,7 14.55,7.5 15.54,8.46C16.5,9.45 17,10.63 17,12V13.45C17,13.86 17.16,14.22 17.46,14.53C17.76,14.84 18.11,15 18.5,15C18.92,15 19.27,14.84 19.57,14.53C19.87,14.22 20,13.86 20,13.45V12C20,9.81 19.23,7.93 17.65,6.35C16.07,4.77 14.19,4 12,4C9.81,4 7.93,4.77 6.35,6.35C4.77,7.93 4,9.81 4,12C4,14.19 4.77,16.07 6.35,17.65C7.93,19.23 9.81,20 12,20H17V22H12C9.25,22 6.9,21 4.95,19.05C3,17.1 2,14.75 2,12C2,9.25 3,6.9 4.95,4.95C6.9,3 9.25,2 12,2Z"/></svg>
+                    工程实践要点
+                </h2>
+                <div class="grid">
+                    <div class="card">
+                        <h3 class="card-title">开发环境搭建</h3>
+                        <ul class="card-list">
+                            <li>基于LLVM/MLIR源码构建</li>
+                            <li>配置CMake编译选项</li>
+                            <li>集成测试框架（Lit/FileCheck）</li>
+                            <li>调试工具（MLIR-opt, mlir-translate）</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3 class="card-title">测试与验证</h3>
+                        <ul class="card-list">
+                            <li>单元测试（Operation验证）</li>
+                            <li>转换正确性测试</li>
+                            <li>端到端功能测试</li>
+                            <li>性能基准测试</li>
+                        </ul>
+                    </div>
+                </div>
+                <p class="section-content" style="margin-top: 20px;">
+                    <span class="highlight">成功的关键</span>在于深入理解MLIR的方言、区域、操作等核心概念，并设计合理的 lowering 路径。同时，需要平衡领域特定优化与通用优化，确保生成的代码既高效又能在不同硬件后端上运行。
+                </p>
+            </div>
+        </div>
+        
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

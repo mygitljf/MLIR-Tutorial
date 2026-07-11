@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多面体模型在MLIR中的实现</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FF;
+            --dark: #2D2B55;
+            --text: #333366;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7ff 0%, #e3eeff 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(108, 99, 255, 0.15);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--light);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .title {
+            font-size: 3.2rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 800;
+            text-shadow: 3px 3px 0px rgba(108, 99, 255, 0.1);
+        }
+        .subtitle {
+            font-size: 1.4rem;
+            color: var(--secondary);
+            font-weight: 600;
+            background: linear-gradient(90deg, var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .decorative-circle {
+            position: absolute;
+            border-radius: 50%;
+            opacity: 0.1;
+            z-index: 0;
+        }
+        .circle1 {
+            width: 200px;
+            height: 200px;
+            background: var(--primary);
+            top: -80px;
+            right: -80px;
+        }
+        .circle2 {
+            width: 150px;
+            height: 150px;
+            background: var(--secondary);
+            bottom: -60px;
+            left: -60px;
+        }
+        .content {
+            position: relative;
+            z-index: 2;
+        }
+        .section {
+            margin-bottom: 50px;
+            padding: 25px;
+            border-radius: 20px;
+            background: var(--light);
+            border-left: 8px solid var(--accent);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.03);
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section-title {
+            font-size: 2rem;
+            color: var(--dark);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .section-title svg {
+            width: 32px;
+            height: 32px;
+            fill: var(--primary);
+        }
+        .section-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: var(--text);
+        }
+        .highlight {
+            background: linear-gradient(120deg, rgba(108, 99, 255, 0.15) 0%, rgba(54, 209, 220, 0.15) 100%);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-top: 6px solid var(--primary);
+        }
+        .card-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-title svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--secondary);
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin: 15px 0;
+        }
+        li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+        }
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 16px;
+            border-bottom: 1px solid #eee;
+            background: white;
+        }
+        tr:hover td {
+            background: #f9f9ff;
+        }
+        .architecture {
+            width: 100%;
+            height: 300px;
+            margin: 30px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 2px dashed var(--accent);
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 3px;
+        }
+        .keyword {
+            display: inline-block;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 5px 15px;
+            border-radius: 50px;
+            margin: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="decorative-circle circle1"></div>
+        <div class="decorative-circle circle2"></div>
+
+        <div class="header">
+            <h1 class="title">多面体模型在MLIR中的实现</h1>
+            <p class="subtitle">Affine循环优化、依赖分析、调度变换</p>
+            <div style="margin-top: 20px;">
+                <span class="keyword">AI编译器</span>
+                <span class="keyword">MLIR</span>
+                <span class="keyword">多面体模型</span>
+                <span class="keyword">循环优化</span>
+                <span class="keyword">高性能计算</span>
+            </div>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/></svg>
+                    核心概念：多面体模型与MLIR
+                </h2>
+                <div class="section-content">
+                    <p>多面体模型是一种用于<strong class="highlight">循环嵌套优化</strong>的数学框架，它将循环迭代空间映射为几何空间中的多面体，通过<strong class="highlight">仿射变换</strong>实现循环变换、并行化和数据局部性优化。</p>
+                    <p>在MLIR中，多面体模型通过<strong class="highlight">Affine Dialect</strong>实现，提供了对循环嵌套的静态分析和变换能力，是连接高级计算图与低级硬件指令的关键中间层。</p>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M9,3V18H12V3H9M12,5L16,18L19,17L15,4L12,5M5,5V18H8V5H5M3,19V21H21V19H3Z"/></svg>
+                        Affine循环优化
+                    </h3>
+                    <ul>
+                        <li><strong>循环融合（Fusion）</strong>：合并多个循环，减少数据访问开销。</li>
+                        <li><strong>循环分裂（Fission）</strong>：拆分大循环，提高并行度。</li>
+                        <li><strong>循环倾斜（Skewing）</strong>：改变迭代顺序，消除依赖。</li>
+                        <li><strong>循环分块（Tiling）</strong>：提升数据局部性，优化缓存使用。</li>
+                        <li><strong>循环展开（Unrolling）</strong>：减少循环开销，增加指令级并行。</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z"/></svg>
+                        依赖分析
+                    </h3>
+                    <ol>
+                        <li><strong>数据依赖检测</strong>：识别RAW、WAR、WAW依赖。</li>
+                        <li><strong>依赖多面体构建</strong>：使用整数线性规划（ILP）建模。</li>
+                        <li><strong>依赖方向向量</strong>：判断循环层间的依赖方向。</li>
+                        <li><strong>可并行性分析</strong>：识别可并行执行的迭代。</li>
+                        <li><strong>依赖图生成</strong>：为调度变换提供依据。</li>
+                    </ol>
+                </div>
+
+                <div class="card">
+                    <h3 class="card-title">
+                        <svg viewBox="0 0 24 24"><path d="M21,12C21,9.97 20.33,8.09 19,6.38V17.63C20.33,15.97 21,14.09 21,12M17.63,19H6.38C7.06,19.55 7.95,20 9.05,20.41C10.14,20.8 11.13,21 12,21C12.88,21 13.86,20.8 14.95,20.41C16.05,20 16.94,19.55 17.63,19M11,17L7,9V17H11M17,9L13,17H17V9M23,12C23,15.03 21.94,17.63 19.78,19.78C17.63,21.94 15.03,23 12,23C8.97,23 6.38,21.94 4.22,19.78C2.06,17.63 1,15.03 1,12C1,8.97 2.06,6.38 4.22,4.22C6.38,2.06 8.97,1 12,1C15.03,1 17.63,2.06 19.78,4.22C21.94,6.38 23,8.97 23,12Z"/></svg>
+                        调度变换
+                    </h3>
+                    <ul>
+                        <li><strong>仿射调度函数</strong>：θ(i) = A·i + b</li>
+                        <li><strong>合法性验证</strong>：保持依赖关系的正确性。</li>
+                        <li><strong>多面体调度算法</strong>：Pluto、Feautrier等。</li>
+                        <li><strong>代码生成</strong>：从调度多面体生成新循环。</li>
+                        <li><strong>性能评估</strong>：基于缓存模型和并行度。</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M19,17H11V16C11,14.67 13.67,14 15,14C16.33,14 19,14.67 19,16M15,9A2,2 0 0,1 17,11A2,2 0 0,1 15,13A2,2 0 0,1 13,11C13,9.89 13.9,9 15,9M20,6C21.1,6 22,6.9 22,8V18C22,19.1 21.1,20 20,20H4C2.9,20 2,19.1 2,18V6C2,4.9 2.9,4 4,4H10L12,6H20M4,12V14H9V12M4,16V18H14V16"/></svg>
+                    MLIR Affine Dialect 架构
+                </h2>
+                <div class="section-content">
+                    <svg class="architecture" viewBox="0 0 800 300">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#6C63FF;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#36D1DC;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#FF6584;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#FFB347;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        
+                        <rect x="50" y="50" width="200" height="60" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                        <text x="150" y="85" text-anchor="middle" fill="white" font-size="16" font-weight="bold">高级IR</text>
+                        <text x="150" y="105" text-anchor="middle" fill="white" font-size="12">Linalg/TOSA</text>
+                        
+                        <rect x="300" y="50" width="200" height="60" rx="10" fill="url(#grad2)" opacity="0.9"/>
+                        <text x="400" y="85" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Affine Dialect</text>
+                        <text x="400" y="105" text-anchor="middle" fill="white" font-size="12">多面体变换</text>
+                        
+                        <rect x="550" y="50" width="200" height="60" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                        <text x="650" y="85" text-anchor="middle" fill="white" font-size="16" font-weight="bold">低级IR</text>
+                        <text x="650" y="105" text-anchor="middle" fill="white" font-size="12">LLVM/GPU</text>
+                        
+                        <polygon points="250,80 300,80 275,70 275,90" fill="#6C63FF"/>
+                        <polygon points="500,80 550,80 525,70 525,90" fill="#FF6584"/>
+                        
+                        <rect x="100" y="180" width="600" height="80" rx="15" fill="#F8F9FF" stroke="#6C63FF" stroke-width="2"/>
+                        <text x="400" y="210" text-anchor="middle" fill="#2D2B55" font-size="14" font-weight="bold">优化流程：依赖分析 → 调度计算 → 循环变换 → 代码生成</text>
+                        
+                        <circle cx="200" y="230" r="8" fill="#36D1DC"/>
+                        <circle cx="300" y="230" r="8" fill="#FF6584"/>
+                        <circle cx="400" y="230" r="8" fill="#6C63FF"/>
+                        <circle cx="500" y="230" r="8" fill="#FFB347"/>
+                        <circle cx="600" y="230" r="8" fill="#36D1DC"/>
+                        
+                        <line x1="200" y1="230" x2="600" y2="230" stroke="#36D1DC" stroke-width="3" stroke-dasharray="5,5"/>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
+                    关键技术对比
+                </h2>
+                <div class="section-content">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>技术</th>
+                                <th>优势</th>
+                                <th>在MLIR中的应用</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>仿射循环分析</strong></td>
+                                <td>精确的迭代空间建模</td>
+                                <td>Affine.for, Affine.if, Affine.load/store</td>
+                            </tr>
+                            <tr>
+                                <td><strong>多面体依赖分析</strong></td>
+                                <td>识别并行性与变换合法性</td>
+                                <td>AffineDialect依赖分析器</td>
+                            </tr>
+                            <tr>
+                                <td><strong>调度变换</strong></td>
+                                <td>自动优化循环顺序</td>
+                                <td>Affine循环变换Pass</td>
+                            </tr>
+                            <tr>
+                                <td><strong>代码生成</strong></td>
+                                <td>生成高效硬件代码</td>
+                                <td>Lowering到LLVM/SPIR-V</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2 class="section-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,15C12.81,15 13.5,14.7 14.11,14.11C14.7,13.5 15,12.81 15,12C15,11.19 14.7,10.5 14.11,9.89C13.5,9.3 12.81,9 12,9C11.19,9 10.5,9.3 9.89,9.89C9.3,10.5 9,11.19 9,12C9,12.81 9.3,13.5 9.89,14.11C10.5,14.7 11.19,15 12,15M12,2C14.75,2 17.1,3 19.05,4.95C21,6.9 22,9.25 22,12C22,14.75 21,17.1 19.05,19.05C17.1,21 14.75,22 12,22C9.25,22 6.9,21 4.95,19.05C3,17.1 2,14.75 2,12C2,9.25 3,6.9 4.95,4.95C6.9,3 9.25,2 12,2Z"/></svg>
+                    工程实践要点
+                </h2>
+                <div class="section-content">
+                    <ul>
+                        <li><strong>渐进式Lowering</strong>：从高级表示逐步降级，保留优化机会。</li>
+                        <li><strong>混合调度策略</strong>：结合自动调度与手动优化提示。</li>
+                        <li><strong>跨平台支持</strong>：CPU、GPU、AI加速器的统一优化框架。</li>
+                        <li><strong>调试与可视化</strong>：利用MLIR的文本和图形化调试工具。</li>
+                        <li><strong>性能 profiling</strong>：集成性能分析，指导优化方向。</li>
+                    </ul>
+                    <p style="margin-top: 20px; padding: 15px; background: linear-gradient(90deg, #f8f9ff, #e3eeff); border-radius: 12px;">
+                        <strong>最佳实践：</strong> 在多面体优化中，优先考虑<strong class="highlight">数据局部性</strong>和<strong class="highlight">并行度平衡</strong>，使用Affine Dialect提供的变换原语组合实现定制优化策略。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

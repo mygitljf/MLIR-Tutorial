@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>向量化（Vectorization）理论与实践</title>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3a0ca3;
+            --accent-color: #f72585;
+            --light-color: #4cc9f0;
+            --background-color: #f8f9fa;
+            --text-color: #2b2d42;
+            --card-bg: #ffffff;
+            --shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .container::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, var(--light-color) 0%, transparent 70%);
+            opacity: 0.05;
+            z-index: 0;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            border-bottom: 3px solid var(--accent-color);
+            padding-bottom: 20px;
+        }
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: var(--secondary-color);
+            font-size: 1.4rem;
+            font-weight: 300;
+        }
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 18px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+            border-left: 6px solid var(--light-color);
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        h2 {
+            color: var(--secondary-color);
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+        }
+        h2 svg {
+            margin-right: 10px;
+            width: 28px;
+            height: 28px;
+            fill: var(--accent-color);
+        }
+        p {
+            line-height: 1.7;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 15px;
+        }
+        li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9ff;
+        }
+        tr:hover {
+            background-color: #eef2ff;
+        }
+        .diagram {
+            display: flex;
+            justify-content: center;
+            margin: 25px 0;
+        }
+        .highlight {
+            background-color: #e9ecef;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            color: var(--secondary-color);
+            font-weight: bold;
+        }
+        .key-point {
+            background: linear-gradient(90deg, #ffecd2 0%, #fcb69f 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 5px solid var(--accent-color);
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px dashed var(--light-color);
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .color-box {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        .color-1 { background-color: var(--primary-color); }
+        .color-2 { background-color: var(--secondary-color); }
+        .color-3 { background-color: var(--accent-color); }
+        .color-4 { background-color: var(--light-color); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="content">
+            <header>
+                <h1>向量化（Vectorization）理论与实践</h1>
+                <div class="subtitle">超字并行（SLP）、循环向量化、目标平台向量指令映射</div>
+            </header>
+
+            <section class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,7V17H13V7H11M11,19V21H13V19H11Z"/></svg>
+                    向量化核心概念
+                </h2>
+                <p><span class="color-box color-1"></span><strong>向量化（Vectorization）</strong>是一种关键的程序变换技术，旨在将标量操作转换为向量操作，从而利用现代CPU和加速器中的SIMD（单指令多数据）硬件单元，实现数据级并行（DLP）。</p>
+                <p>其核心目标是提升计算密集型应用的性能，常见于科学计算、图像处理、机器学习等领域。在AI编译器中，向量化是连接高层算子表示与底层硬件指令的关键桥梁。</p>
+                <div class="key-point">
+                    <strong>核心价值：</strong> 通过一条指令同时处理多个数据元素，显著提高计算吞吐量，降低指令开销，是现代高性能计算和AI推理/训练的基石之一。
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M3,3H21V21H3V3M5,5V19H19V5H5M7,7H17V9H7V7M7,11H17V13H7V11M7,15H14V17H7V15Z"/></svg>
+                    主要向量化技术
+                </h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>技术名称</th>
+                            <th>工作粒度</th>
+                            <th>核心思想</th>
+                            <th>适用场景</th>
+                            <th>在MLIR中的体现</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>超字并行（SLP）</strong></td>
+                            <td>基本块内</td>
+                            <td>将多个独立的标量操作打包成向量操作</td>
+                            <td>数据并行但非循环的代码段</td>
+                            <td><span class="highlight">vector</span> Dialect 中的打包操作</td>
+                        </tr>
+                        <tr>
+                            <td><strong>循环向量化（Loop Vectorization）</strong></td>
+                            <td>循环迭代</td>
+                            <td>将循环的多次迭代合并为一次向量迭代</td>
+                            <td>规整的数据并行循环</td>
+                            <td><span class="highlight">affine</span>, <span class="highlight">scf</span> 到 <span class="highlight">vector</span> 的转换</td>
+                        </tr>
+                        <tr>
+                            <td><strong>目标平台映射</strong></td>
+                            <td>指令/寄存器</td>
+                            <td>将抽象向量操作映射到具体硬件指令（如AVX、NEON）</td>
+                            <td>代码生成后端</td>
+                            <td><span class="highlight">LLVM</span> Dialect 中的 intrinsic 与 lowering</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M19,3H5C3.89,3 3,3.89 3,5V19C3,20.1 3.9,21 5,21H19C20.1,21 21,20.1 21,19V5C21,3.89 20.1,3 19,3M10,17L6,13L7.41,11.58L10,14.17L16.59,7.58L18,9"/></svg>
+                    超字并行（SLP）详解
+                </h2>
+                <p><span class="color-box color-2"></span>SLP 关注于发掘基本块内相邻或相似的独立标量操作，将它们组合成一个“超字”（Superword），从而形成向量操作。</p>
+                <ul>
+                    <li><strong>发现阶段：</strong> 通过代价模型识别可以打包的标量指令对或指令组。</li>
+                    <li><strong>打包阶段：</strong> 将标量值打包到向量寄存器中，生成向量指令。</li>
+                    <li><strong>调度阶段：</strong> 调整指令顺序，优化数据访问模式。</li>
+                </ul>
+                <div class="diagram">
+                    <svg width="500" height="120" viewBox="0 0 500 120">
+                        <rect x="10" y="40" width="100" height="40" rx="5" fill="#4cc9f0" opacity="0.8"/>
+                        <text x="60" y="65" text-anchor="middle" fill="white" font-weight="bold">标量Op A</text>
+                        <rect x="130" y="40" width="100" height="40" rx="5" fill="#4cc9f0" opacity="0.8"/>
+                        <text x="180" y="65" text-anchor="middle" fill="white" font-weight="bold">标量Op B</text>
+                        <rect x="250" y="40" width="100" height="40" rx="5" fill="#4cc9f0" opacity="0.8"/>
+                        <text x="300" y="65" text-anchor="middle" fill="white" font-weight="bold">标量Op C</text>
+                        <rect x="370" y="40" width="100" height="40" rx="5" fill="#4cc9f0" opacity="0.8"/>
+                        <text x="420" y="65" text-anchor="middle" fill="white" font-weight="bold">标量Op D</text>
+                        <path d="M60,80 L60,100 L300,100 L300,80" stroke="#f72585" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                        <text x="180" y="115" text-anchor="middle" fill="#f72585" font-weight="bold">SLP 打包</text>
+                        <rect x="200" y="10" width="120" height="40" rx="5" fill="#3a0ca3" opacity="0.9"/>
+                        <text x="260" y="35" text-anchor="middle" fill="white" font-weight="bold">向量Op [A,B,C,D]</text>
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#f72585"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12C4,14.39 5.05,16.53 6.71,18H9V12H17L19.15,14.15C19.44,13.5 19.58,12.77 19.58,12A8,8 0 0,0 12,4Z"/></svg>
+                    循环向量化详解
+                </h2>
+                <p><span class="color-box color-3"></span>循环向量化是性能提升最显著的向量化技术，它将循环的标量迭代转换为向量迭代（每次处理多个数据元素）。</p>
+                <ol>
+                    <li><strong>合法性检查：</strong> 分析循环依赖（如数据依赖、内存别名），确保向量化安全。</li>
+                    <li><strong>成本建模：</strong> 评估向量化的收益（如减少循环次数）与开销（如数据打包/解包）。</li>
+                    <li><strong>变换实施：</strong>
+                        <ul>
+                            <li>创建宽向量类型。</li>
+                            <li>将循环步长改为向量宽度。</li>
+                            <li>将循环体内的标量操作替换为向量操作。</li>
+                            <li>处理剩余迭代（Loop Tail）。</li>
+                        </ul>
+                    </li>
+                </ol>
+                <div class="key-point">
+                    <strong>MLIR 实践：</strong> 在 MLIR 中，可以通过 <span class="highlight">affine</span> 或 <span class="highlight">scf.for</span> 循环分析，利用 <span class="highlight">-convert-scf-to-vector</span> 或自定义转换 pass，将循环 lowering 到 <span class="highlight">vector</span> dialect 操作。
+                </div>
+            </section>
+
+            <section class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M5,3H7V5H5V10A2,2 0 0,1 3,12A2,2 0 0,1 5,14V19H7V21H5C3.93,20.73 3,20.1 3,19V15A2,2 0 0,0 1,13H0V11H1A2,2 0 0,0 3,9V5A2,2 0 0,1 5,3M19,3A2,2 0 0,1 21,5V9A2,2 0 0,0 23,11H24V13H23A2,2 0 0,0 21,15V19A2,2 0 0,1 19,21H17V19H19V14A2,2 0 0,1 21,12A2,2 0 0,1 19,10V5H17V3H19M12,15A1,1 0 0,1 13,16A1,1 0 0,1 12,17A1,1 0 0,1 11,16A1,1 0 0,1 12,15M8,15A1,1 0 0,1 9,16A1,1 0 0,1 8,17A1,1 0 0,1 7,16A1,1 0 0,1 8,15M16,15A1,1 0 0,1 17,16A1,1 0 0,1 16,17A1,1 0 0,1 15,16A1,1 0 0,1 16,15Z"/></svg>
+                    目标平台向量指令映射
+                </h2>
+                <p><span class="color-box color-4"></span>这是将抽象的向量操作（如 <span class="highlight">vector.add</span>）映射到具体硬件指令（如 x86 AVX-512 的 <span class="highlight">vpaddd</span>）的过程，是编译器后端的核心任务。</p>
+                <ul>
+                    <li><strong>向量长度匹配：</strong> 将 MLIR 中的任意长度向量，规整化为目标硬件支持的向量长度（如 128/256/512 位）。</li>
+                    <li><strong>指令选择：</strong> 根据操作类型和数据类型，选择最优的硬件指令。</li>
+                    <li><strong>寄存器分配：</strong> 管理有限的向量寄存器。</li>
+                    <li><strong> intrinsic 调用：</strong> 对于复杂操作（如 gather/scatter），可能映射到编译器内置函数。</li>
+                </ul>
+                <p>在 MLIR 中，这通常通过从 <span class="highlight">vector</span> dialect 逐步 lowering 到 <span class="highlight">LLVM</span> dialect，并最终生成机器码来完成。</p>
+            </section>
+
+            <section class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,15C12.81,15 13.5,14.7 14.11,14.11C14.7,13.5 15,12.81 15,12C15,11.19 14.7,10.5 14.11,9.89C13.5,9.3 12.81,9 12,9C11.19,9 10.5,9.3 9.89,9.89C9.3,10.5 9,11.19 9,12C9,12.81 9.3,13.5 9.89,14.11C10.5,14.7 11.19,15 12,15M12,2C14.75,2 17.1,3 19.05,4.95C21,6.9 22,9.25 22,12C22,14.75 21,17.1 19.05,19.05C17.1,21 14.75,22 12,22C9.25,22 6.9,21 4.95,19.05C3,17.1 2,14.75 2,12C2,9.25 3,6.9 4.95,4.95C6.9,3 9.25,2 12,2Z"/></svg>
+                    MLIR 中的向量化流程架构
+                </h2>
+                <div class="diagram">
+                    <svg width="550" height="280" viewBox="0 0 550 280">
+                        <!-- 高层次IR -->
+                        <rect x="50" y="20" width="150" height="50" rx="10" fill="#4361ee" opacity="0.9"/>
+                        <text x="125" y="50" text-anchor="middle" fill="white" font-weight="bold">affine/scf Dialect</text>
+                        <text x="125" y="70" text-anchor="middle" fill="#e0e0ff" font-size="0.9em">高层循环表示</text>
+                        <!-- 向量化转换 -->
+                        <rect x="230" y="80" width="90" height="40" rx="8" fill="#f72585"/>
+                        <text x="275" y="105" text-anchor="middle" fill="white" font-weight="bold" font-size="0.9em">向量化Pass</text>
+                        <!-- 向量IR -->
+                        <rect x="350" y="20" width="150" height="50" rx="10" fill="#3a0ca3" opacity="0.9"/>
+                        <text x="425" y="50" text-anchor="middle" fill="white" font-weight="bold">vector Dialect</text>
+                        <text x="425" y="70" text-anchor="middle" fill="#e0e0ff" font-size="0.9em">抽象向量操作</text>
+                        <!--  lowering -->
+                        <rect x="230" y="160" width="90" height="40" rx="8" fill="#4cc9f0"/>
+                        <text x="275" y="185" text-anchor="middle" fill="white" font-weight="bold" font-size="0.9em">Lowering</text>
+                        <!-- LLVM IR -->
+                        <rect x="50" y="210" width="150" height="50" rx="10" fill="#7209b7" opacity="0.9"/>
+                        <text x="125" y="240" text-anchor="middle" fill="white" font-weight="bold">LLVM Dialect</text>
+                        <text x="125" y="260" text-anchor="middle" fill="#e0e0ff" font-size="0.9em">含intrinsic调用</text>
+                        <!-- 机器码 -->
+                        <rect x="350" y="210" width="150" height="50" rx="10" fill="#480ca8" opacity="0.9"/>
+                        <text x="425" y="240" text-anchor="middle" fill="white" font-weight="bold">机器码</text>
+                        <text x="425" y="260" text-anchor="middle" fill="#e0e0ff" font-size="0.9em">AVX/NEON/SVE</text>
+                        <!-- 箭头 -->
+                        <path d="M200,45 L230,100" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+                        <path d="M320,100 L350,45" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+                        <path d="M200,235 L230,180" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+                        <path d="M320,180 L350,235" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+                        <path d="M275,120 L275,160" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow2)"/>
+                        <defs>
+                            <marker id="arrow2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+                <p>MLIR 通过多级中间表示和可插拔的转换 Pass，提供了灵活且强大的向量化基础设施，允许编译器工程师在不同抽象层次实施和调优向量化策略。</p>
+            </section>
+
+            <footer>
+                雁熙云著
+            </footer>
+        </div>
+    </div>
+</body>
+</html>

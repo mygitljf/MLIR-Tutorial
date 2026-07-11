@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR与算子中间表示从理论到实践 AI编译器开发工程实操落地总目录</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: "Microsoft YaHei", Arial, sans-serif; background: #f0f2f5; padding: 20px; }
+        .header {
+            background: linear-gradient(90deg, #ff6b6b, #4ecdc4);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .header h1 { font-size: 28px; margin-bottom: 8px; }
+        .header p { font-size: 16px; opacity: 0.9; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            border-top: 3px solid #4ecdc4;
+        }
+        .card-number {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            background: #4ade80;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 24px;
+            font-size: 12px;
+            margin-right: 8px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        .card-desc {
+            font-size: 13px;
+            color: #64748b;
+            line-height: 1.4;
+        }
+        .card a { text-decoration: none; color: inherit; }
+        @media (max-width: 992px) {
+            .card-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 576px) {
+            .card-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 MLIR与算子中间表示从理论到实践 AI编译器开发工程实操落地总目录</h1>
+            <p>全面掌握MLIR与算子中间表示从理论到实践 AI编译器开发工程实操落地的核心知识与实践技能</p>
+        </div>
+        <div class="card-grid">
+            
+            <div class="card">
+                <a href="01.html">
+                    <div class="card-title">
+                        <span class="card-number">01</span>
+                        AI编译器概述
+                    </div>
+                    <div class="card-desc">AI编译器概述</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="02.html">
+                    <div class="card-title">
+                        <span class="card-number">02</span>
+                        MLIR核心概念精讲
+                    </div>
+                    <div class="card-desc">MLIR核心概念精讲</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="03.html">
+                    <div class="card-title">
+                        <span class="card-number">03</span>
+                        MLIR基础设施搭建
+                    </div>
+                    <div class="card-desc">MLIR基础设施搭建</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="04.html">
+                    <div class="card-title">
+                        <span class="card-number">04</span>
+                        MLIR文本格式(.mlir)详解
+                    </div>
+                    <div class="card-desc">MLIR文本格式(.mlir)详解</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="05.html">
+                    <div class="card-title">
+                        <span class="card-number">05</span>
+                        构建第一个自定义方言（Dialect）
+                    </div>
+                    <div class="card-desc">构建第一个自定义方言（Dialect）</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="06.html">
+                    <div class="card-title">
+                        <span class="card-number">06</span>
+                        MLIR类型系统深入
+                    </div>
+                    <div class="card-desc">MLIR类型系统深入</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="07.html">
+                    <div class="card-title">
+                        <span class="card-number">07</span>
+                        MLIR属性（Attribute）系统
+                    </div>
+                    <div class="card-desc">MLIR属性（Attribute）系统</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="08.html">
+                    <div class="card-title">
+                        <span class="card-number">08</span>
+                        MLIR模式匹配与重写
+                    </div>
+                    <div class="card-desc">MLIR模式匹配与重写</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="09.html">
+                    <div class="card-title">
+                        <span class="card-number">09</span>
+                        MLIR转换（Pass）管理
+                    </div>
+                    <div class="card-desc">MLIR转换（Pass）管理</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="10.html">
+                    <div class="card-title">
+                        <span class="card-number">10</span>
+                        中间表示（IR）的遍历与变换
+                    </div>
+                    <div class="card-desc">中间表示（IR）的遍历与变换</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="11.html">
+                    <div class="card-title">
+                        <span class="card-number">11</span>
+                        数据流与控制流建模
+                    </div>
+                    <div class="card-desc">数据流与控制流建模</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="12.html">
+                    <div class="card-title">
+                        <span class="card-number">12</span>
+                        MemRef与缓冲区（Buffer）管理
+                    </div>
+                    <div class="card-desc">MemRef与缓冲区（Buffer）管理</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="13.html">
+                    <div class="card-title">
+                        <span class="card-number">13</span>
+                        第13讲：张量抽象与Lowering
+                    </div>
+                    <div class="card-desc">第13讲：张量抽象与Lowering</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="14.html">
+                    <div class="card-title">
+                        <span class="card-number">14</span>
+                        循环变换与优化
+                    </div>
+                    <div class="card-desc">循环变换与优化</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="15.html">
+                    <div class="card-title">
+                        <span class="card-number">15</span>
+                        向量化（Vectorization）理论与实践
+                    </div>
+                    <div class="card-desc">向量化（Vectorization）理论与实践</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="16.html">
+                    <div class="card-title">
+                        <span class="card-number">16</span>
+                        GPU与并行计算方言
+                    </div>
+                    <div class="card-desc">GPU与并行计算方言</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="17.html">
+                    <div class="card-title">
+                        <span class="card-number">17</span>
+                        多面体模型在MLIR中的实现
+                    </div>
+                    <div class="card-desc">多面体模型在MLIR中的实现</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="18.html">
+                    <div class="card-title">
+                        <span class="card-number">18</span>
+                        算子融合（Fusion）策略
+                    </div>
+                    <div class="card-desc">算子融合（Fusion）策略</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="19.html">
+                    <div class="card-title">
+                        <span class="card-number">19</span>
+                        形状推导与动态形状支持
+                    </div>
+                    <div class="card-desc">形状推导与动态形状支持</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="20.html">
+                    <div class="card-title">
+                        <span class="card-number">20</span>
+                        量化（Quantization）基础设施
+                    </div>
+                    <div class="card-desc">量化（Quantization）基础设施</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="21.html">
+                    <div class="card-title">
+                        <span class="card-number">21</span>
+                        从深度学习框架到MLIR：桥接实践
+                    </div>
+                    <div class="card-desc">从深度学习框架到MLIR：桥接实践</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="22.html">
+                    <div class="card-title">
+                        <span class="card-number">22</span>
+                        前端导入：ONNX与TensorFlow GraphDef转换为MLIR图表示
+                    </div>
+                    <div class="card-desc">前端导入：ONNX与TensorFlow GraphDef转换为MLIR图表示</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="23.html">
+                    <div class="card-title">
+                        <span class="card-number">23</span>
+                        高层次优化（HLO）在MLIR中的实现
+                    </div>
+                    <div class="card-desc">高层次优化（HLO）在MLIR中的实现</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="24.html">
+                    <div class="card-title">
+                        <span class="card-number">24</span>
+                        MLIR中级优化：核心变换详解
+                    </div>
+                    <div class="card-desc">MLIR中级优化：核心变换详解</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="25.html">
+                    <div class="card-title">
+                        <span class="card-number">25</span>
+                        目标相关优化与Lowering
+                    </div>
+                    <div class="card-desc">目标相关优化与Lowering</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="26.html">
+                    <div class="card-title">
+                        <span class="card-number">26</span>
+                        后端代码生成：从MLIR到机器码
+                    </div>
+                    <div class="card-desc">后端代码生成：从MLIR到机器码</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="27.html">
+                    <div class="card-title">
+                        <span class="card-number">27</span>
+                        运行时（Runtime）集成
+                    </div>
+                    <div class="card-desc">运行时（Runtime）集成</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="28.html">
+                    <div class="card-title">
+                        <span class="card-number">28</span>
+                        MLIR性能分析与调优
+                    </div>
+                    <div class="card-desc">MLIR性能分析与调优</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="29.html">
+                    <div class="card-title">
+                        <span class="card-number">29</span>
+                        MLIR调试与测试框架精要
+                    </div>
+                    <div class="card-desc">MLIR调试与测试框架精要</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="30.html">
+                    <div class="card-title">
+                        <span class="card-number">30</span>
+                        自定义转换工具链
+                    </div>
+                    <div class="card-desc">自定义转换工具链</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="31.html">
+                    <div class="card-title">
+                        <span class="card-number">31</span>
+                        面向TPU/NPU的代码生成
+                    </div>
+                    <div class="card-desc">面向TPU/NPU的代码生成</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="32.html">
+                    <div class="card-title">
+                        <span class="card-number">32</span>
+                        🌿 稀疏计算：稀疏张量技术全解析
+                    </div>
+                    <div class="card-desc">🌿 稀疏计算：稀疏张量技术全解析</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="33.html">
+                    <div class="card-title">
+                        <span class="card-number">33</span>
+                        异构计算与MLIR
+                    </div>
+                    <div class="card-desc">异构计算与MLIR</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="34.html">
+                    <div class="card-title">
+                        <span class="card-number">34</span>
+                        递归神经网络与动态控制流编译
+                    </div>
+                    <div class="card-desc">递归神经网络与动态控制流编译</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="35.html">
+                    <div class="card-title">
+                        <span class="card-number">35</span>
+                        自动微分在MLIR中的实现
+                    </div>
+                    <div class="card-desc">自动微分在MLIR中的实现</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="36.html">
+                    <div class="card-title">
+                        <span class="card-number">36</span>
+                        编译器中间表示的序列化与持久化
+                    </div>
+                    <div class="card-desc">编译器中间表示的序列化与持久化</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="37.html">
+                    <div class="card-title">
+                        <span class="card-number">37</span>
+                        大规模编译与分布式编译
+                    </div>
+                    <div class="card-desc">大规模编译与分布式编译</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="38.html">
+                    <div class="card-title">
+                        <span class="card-number">38</span>
+                        MLIR生态系统与社区
+                    </div>
+                    <div class="card-desc">MLIR生态系统与社区</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="39.html">
+                    <div class="card-title">
+                        <span class="card-number">39</span>
+                        工程实践：构建简易深度学习算子编译器
+                    </div>
+                    <div class="card-desc">工程实践：构建简易深度学习算子编译器</div>
+                </a>
+            </div>
+
+            <div class="card">
+                <a href="40.html">
+                    <div class="card-title">
+                        <span class="card-number">40</span>
+                        MLIR前沿与展望
+                    </div>
+                    <div class="card-desc">MLIR前沿与展望</div>
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

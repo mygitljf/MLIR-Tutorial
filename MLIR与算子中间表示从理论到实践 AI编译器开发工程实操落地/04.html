@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- 核心修复1：添加视口标签，让网页在手机上自动缩放适配 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR文本格式(.mlir)详解</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --accent: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --warning: #ffd166;
+            --card-bg: #ffffff;
+            --shadow: rgba(67, 97, 238, 0.15);
+        }
+
+        /* 核心修复2：全局防溢出，并设置基础盒模型 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            overflow-x: hidden; /* 强制隐藏横向滚动条 */
+        }
+
+        body {
+            background: linear-gradient(135deg, #f5f7ff 0%, #e3e9ff 100%);
+            color: var(--dark);
+            min-height: 100vh;
+            padding: 15px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 950px;
+            margin: 0 auto;
+            background-color: var(--card-bg);
+            border-radius: 28px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        header {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 35px 25px 30px;
+            text-align: center;
+            position: relative;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+
+        header .subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .decoration {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            box-shadow: 0 8px 20px rgba(247, 37, 133, 0.4);
+        }
+
+        .content {
+            padding: 25px;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+        }
+
+        .section {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+            border-left: 6px solid var(--primary);
+            overflow: hidden; /* 防止内容溢出 */
+        }
+
+        .section:hover {
+            transform: translateY(-5px);
+        }
+
+        .section h2 {
+            color: var(--secondary);
+            margin-bottom: 18px;
+            font-size: 1.35rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section h2 svg {
+            width: 24px;
+            height: 24px;
+            fill: var(--accent);
+        }
+
+        .section p, .section li {
+            line-height: 1.7;
+            margin-bottom: 12px;
+            color: #444;
+            font-size: 0.95rem;
+        }
+
+        ul, ol {
+            padding-left: 22px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        /* 核心修复3：代码块强制换行，防止撑破页面 */
+        .code-block {
+            background: #1e1e2e;
+            color: #f8f8f2;
+            padding: 18px;
+            border-radius: 12px;
+            font-family: 'Courier New', monospace;
+            margin: 18px 0;
+            overflow-x: auto; /* 内容过多时出现内部滚动条 */
+            white-space: pre-wrap; /* 允许长文本自动换行 */
+            word-wrap: break-word; /* 强制长单词换行 */
+            font-size: 0.88rem;
+            border: 2px solid #3a3a5d;
+        }
+
+        .highlight {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 18px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+            display: table;
+            table-layout: auto;
+        }
+
+        th {
+            background-color: var(--primary);
+            color: white;
+            padding: 12px 8px;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #e0e0e0;
+            font-size: 0.9rem;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+
+        .architecture {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 25px 15px;
+            background: linear-gradient(145deg, #f0f4ff, #ffffff);
+            border-radius: 20px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        /* 核心修复4：SVG 图片自适应宽度 */
+        .architecture svg {
+            width: 100%;
+            height: auto;
+            max-width: 100%;
+            overflow: visible;
+        }
+
+        .architecture h2 {
+            color: var(--secondary);
+            margin-bottom: 20px;
+            font-size: 1.35rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 25px;
+            background: linear-gradient(90deg, #f8f9fa, #e9ecef);
+            color: var(--dark);
+            font-size: 1rem;
+            font-weight: 600;
+            letter-spacing: 1px;
+            border-top: 1px solid rgba(0,0,0,0.05);
+        }
+
+        /* 大屏自适应双栏 */
+        @media (min-width: 820px) {
+            .content {
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+            }
+            /* 针对双栏布局，架构图占满一行 */
+            .architecture {
+                grid-column: 1 / -1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MLIR文本格式(.mlir)详解</h1>
+            <div class="subtitle">
+                语法结构、操作定义、属性、类型、区域的可视化表示与解析
+            </div>
+            <div class="decoration">AI编译器核心知识</div>
+        </header>
+        <div class="content">
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z"/></svg>
+                    MLIR文本格式概述
+                </h2>
+                <p><span class="highlight">MLIR (.mlir) 文件</span>是一种人类可读、可写的中间表示文本格式。它承载了编译器中间表示（IR）的完整信息，是连接算法、硬件与编译优化的桥梁。</p>
+                <ul>
+                    <li><strong>可读性</strong>：采用类似汇编的语法，但结构更清晰。</li>
+                    <li><strong>层次性</strong>：支持操作、区域、模块等多级嵌套。</li>
+                    <li><strong>可扩展性</strong>：通过Dialect机制支持自定义操作、类型和属性。</li>
+                    <li><strong>可序列化</strong>：完整的IR可以持久化到文本文件，并重新加载。</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"/></svg>
+                    核心语法结构
+                </h2>
+                <p>MLIR文件由一系列<span class="highlight">操作（Operation）</span>构成，操作是IR的基本单元。</p>
+                <div class="code-block">
+                    // 模块（Module）是顶级容器
+                    module {
+                      // 函数（FuncOp）是一个包含区域的操
+                      func.func @main(%arg0: tensor<2x3xf32>) -> tensor<2x3xf32> {
+                        // 运算操作：addf
+                        %0 = arith.addf %arg0, %arg0 : tensor<2x3xf32>
+                        // 返回操作
+                        return %0 : tensor<2x3xf32>
+                      }
+                    }
+                </div>
+                <p>一个操作通常包括：<strong>结果</strong>、<strong>名称</strong>、<strong>操作数</strong>、<strong>属性</strong>、<strong>类型</strong>和可选的<span class="highlight">区域（Region）</span>。</p>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,15C12.81,15 13.5,14.7 14.11,14.11C14.7,13.5 15,12.81 15,12C15,11.19 14.7,10.5 14.11,9.89C13.5,9.3 12.81,9 12,9C11.19,9 10.5,9.3 9.89,9.89C9.3,10.5 9,11.19 9,12C9,12.81 9.3,13.5 9.89,14.11C10.5,14.7 11.19,15 12,15M12,2C14.75,2 17.1,3 19.05,4.95C21,6.9 22,9.25 22,12C22,14.75 21,17.1 19.05,19.05C17.1,21 14.75,22 12,22C9.25,22 6.9,21 4.95,19.05C3,17.1 2,14.75 2,12C2,9.25 3,6.9 4.95,4.95C6.9,3 9.25,2 12,2Z"/></svg>
+                    操作（Operation）定义
+                </h2>
+                <p>操作是执行和转换的基本单位，其通用格式为：</p>
+                <div class="code-block">
+                    [%result =] dialect.operation_name(operands) {attributes} : type_signature (-> return_types)?
+                </div>
+                <table>
+                    <thead>
+                        <tr><th>组成部分</th><th>描述</th><th>示例</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>结果</td><td>可选，以%开头的SSA值</td><td>%0, %result</td></tr>
+                        <tr><td>操作名</td><td>方言名前缀.操作名</td><td>arith.addf, func.call</td></tr>
+                        <tr><td>操作数</td><td>输入SSA值列表</td><td>%arg0, %1</td></tr>
+                        <tr><td>属性</td><td>编译期已知的键值对</td><td>{lower_bound = 0}</td></tr>
+                        <tr><td>类型签名</td><td>操作数和结果的类型</td><td>tensor<2xf32></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z"/></svg>
+                    属性与类型系统
+                </h2>
+                <p><span class="highlight">属性（Attribute）</span>是编译期已知的常量元数据，<span class="highlight">类型（Type）</span>描述数据的形状与语义。</p>
+                <ul>
+                    <li><strong>内置属性</strong>：整数、浮点数、字符串、数组、字典等。</li>
+                    <li><strong>方言属性</strong>：由特定方言定义，如DenseElementsAttr。</li>
+                    <li><strong>内置类型</strong>：index, f32, vector<4xf32>。</li>
+                    <li><strong>方言类型</strong>：tensor<?xf32>, memref<2x2xf32>。</li>
+                </ul>
+                <div class="code-block">
+                    // 属性示例
+                    %cst = arith.constant 42 : i32
+                    %tensor = arith.constant dense<[[1.0, 2.0], [3.0, 4.0]]> : tensor<2x2xf32>
+                    
+                    "func.call"(%arg0) {
+                        callee = @foo, 
+                        call_conv = #llvm.cc<"cdecl">
+                    } : (tensor<f32>) -> ()
+                    
+                    // 类型示例
+                    %0:2 = "some.op"(%arg0) : (tensor<10xf32>) -> (i64, vector<4xf32>)
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M19,17H11V23H7V17H5V13H7V7H5V3H7V1H9V3H15V1H17V3H19V7H17V13H19V17M15,17V13H17V17H15M11,11H13V7H11V11M11,15H13V13H11V15M7,7V11H9V7H7M7,13V15H9V13H7M15,7V11H17V7H15Z"/></svg>
+                    区域（Region）与块（Block）
+                </h2>
+                <p><span class="highlight">区域</span>是包含一系列块（Block）的容器，<span class="highlight">块</span>是包含操作列表并具有参数列表的基本执行单元。</p>
+                <div class="code-block">
+                    func.func @region_example(%arg0: i32) -> i32 {
+                      // 这是一个块（Block），参数为 %arg0
+                      ^bb0(%block_arg: i32):
+                        %0 = arith.addi %block_arg, %block_arg : i32
+                        
+                        // 区域可以嵌套操作，形成控制流图
+                        scf.if %cond {
+                          // 新区域（then区域）
+                          %1 = arith.muli %0, %0 : i32
+                          scf.yield %1 : i32
+                        } else {
+                          // 另一个区域（else区域）
+                          scf.yield %0 : i32
+                        }
+                        return %result : i32
+                    }
+                </div>
+                <p>区域使得MLIR能够自然地表示结构化控制流（如循环、条件分支）和复合操作。</p>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,16A2,2 0 0,1 14,18A2,2 0 0,1 12,20A2,2 0 0,1 10,18A2,2 0 0,1 12,16M23.46,8.86L21.87,15.75L15,14.16L18.8,11.78C17.39,9.5 14.87,8 12,8C8.05,8 4.77,10.86 4.12,14.63L2.15,14.28C2.96,9.58 7.06,6 12,6C15.58,6 18.73,7.89 20.5,10.72L23.46,8.86Z"/></svg>
+                    可视化表示与解析
+                </h2>
+                <p>理解.mlir文件的结构有助于直观地进行编译器调试和优化。</p>
+                <ol>
+                    <li><strong>文本解析</strong>：MLIR的解析器将文本转换为内存中的IR对象。</li>
+                    <li><strong>图形化视图</strong>：可通过工具（如MLIR Visualizer）将区域和操作转换为控制流图或数据流图。</li>
+                    <li><strong>打印与格式化</strong>：IR可以

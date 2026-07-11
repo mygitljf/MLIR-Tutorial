@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR中的自动微分实现</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #FFFAF0;
+            --dark: #2D3047;
+            --text: #333344;
+            --shadow: rgba(108, 99, 255, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7ff 0%, #f0f9ff 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px var(--shadow);
+            overflow: hidden;
+            border: 8px solid white;
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.05);
+            border-top: 8px solid var(--secondary);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .card h2 svg {
+            width: 32px;
+            height: 32px;
+        }
+        .card ul, .card ol {
+            padding-left: 24px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        .card li {
+            margin-bottom: 12px;
+            font-size: 1.05rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 8px 16px var(--shadow);
+        }
+        th, td {
+            padding: 18px 20px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0ff;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9ff;
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .architecture {
+            background: #f0f7ff;
+            border-radius: 20px;
+            padding: 30px;
+            grid-column: 1 / -1;
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+        .highlight {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+        .code {
+            font-family: 'Courier New', monospace;
+            background: #2D3047;
+            color: #FF6584;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        .badge {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>自动微分在MLIR中的实现</h1>
+            <p>深入解析前向/反向模式、梯度操作生成与检查点技术，构建高效可微编程基础设施</p>
+        </div>
+
+        <div class="content">
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13 7h-2v4H7v2h4v4h2v-4h4v-2h-4V7zm-1-5C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/>
+                    </svg>
+                    前向模式自动微分
+                </h2>
+                <p>前向模式沿计算图正向传播梯度，适用于输入维度少、输出维度多的场景。</p>
+                <ul>
+                    <li><span class="highlight">双数（Dual Number）表示</span>：每个值携带原始值与梯度值</li>
+                    <li><span class="highlight">即时计算</span>：梯度与原始计算同步进行</li>
+                    <li><span class="highlight">Jacobian向量积</span>：高效计算单个方向导数</li>
+                    <li>MLIR实现：通过操作重写与类型扩展支持</li>
+                </ul>
+                <div class="svg-container">
+                    <svg width="300" height="150" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#6C63FF"/>
+                                <stop offset="100%" stop-color="#36D1DC"/>
+                            </linearGradient>
+                        </defs>
+                        <path d="M20,50 L100,50 L120,30 L180,30 L200,50 L280,50" stroke="url(#grad1)" stroke-width="4" fill="none"/>
+                        <circle cx="20" cy="50" r="8" fill="#FF6584"/>
+                        <circle cx="100" cy="50" r="8" fill="#FF6584"/>
+                        <circle cx="200" cy="50" r="8" fill="#FF6584"/>
+                        <circle cx="280" cy="50" r="8" fill="#FF6584"/>
+                        <text x="20" y="80" text-anchor="middle" fill="#2D3047">输入</text>
+                        <text x="100" y="80" text-anchor="middle" fill="#2D3047">层1</text>
+                        <text x="200" y="80" text-anchor="middle" fill="#2D3047">层2</text>
+                        <text x="280" y="80" text-anchor="middle" fill="#2D3047">输出</text>
+                        <text x="50" y="45" fill="white" font-size="12">前向</text>
+                        <text x="150" y="45" fill="white" font-size="12">前向</text>
+                        <text x="240" y="45" fill="white" font-size="12">前向</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+                    </svg>
+                    反向模式自动微分
+                </h2>
+                <p>反向模式（反向传播）是深度学习的主流方法，适用于输出维度少、输入维度多的场景。</p>
+                <ol>
+                    <li><span class="highlight">前向计算</span>：执行原始计算并保存中间结果</li>
+                    <li><span class="highlight">反向传播</span>：从输出向输入反向计算梯度</li>
+                    <li><span class="highlight">链式法则</span>：逐层组合局部梯度</li>
+                    <li><span class="highlight">内存优化</span>：通过检查点技术平衡内存与计算</li>
+                </ol>
+                <table>
+                    <tr>
+                        <th>对比维度</th>
+                        <th>前向模式</th>
+                        <th>反向模式</th>
+                    </tr>
+                    <tr>
+                        <td>计算复杂度</td>
+                        <td>O(n)×前向计算</td>
+                        <td>O(m)×前向计算</td>
+                    </tr>
+                    <tr>
+                        <td>适用场景</td>
+                        <td>n小，m大</td>
+                        <td>n大，m小</td>
+                    </tr>
+                    <tr>
+                        <td>内存占用</td>
+                        <td>较低</td>
+                        <td>较高（需保存中间结果）</td>
+                    </tr>
+                    <tr>
+                        <td>MLIR支持</td>
+                        <td>通过转换模式实现</td>
+                        <td>内置梯度区域操作</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/>
+                    </svg>
+                    梯度操作生成
+                </h2>
+                <p>MLIR通过可扩展的方言转换框架，将原始操作转换为对应的梯度操作。</p>
+                <div class="badge">模式匹配</div>
+                <div class="badge">符号求导</div>
+                <div class="badge">操作重写</div>
+                <div class="badge">类型推导</div>
+                <ul>
+                    <li><span class="code">gradient</span> 区域：封装原始计算与梯度计算</li>
+                    <li>自定义导数规则：为特定操作注册梯度实现</li>
+                    <li>复合操作分解：将复杂操作分解为基本操作的梯度组合</li>
+                    <li>控制流处理：支持循环、条件等控制结构的梯度计算</li>
+                </ul>
+                <div class="svg-container">
+                    <svg width="320" height="120" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="10" y="30" width="90" height="60" rx="10" fill="#FF6584" opacity="0.8"/>
+                        <text x="55" y="65" text-anchor="middle" fill="white" font-weight="bold">原始IR</text>
+                        <path d="M110,60 L150,60" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow)"/>
+                        <rect x="160" y="30" width="90" height="60" rx="10" fill="#6C63FF" opacity="0.8"/>
+                        <text x="205" y="65" text-anchor="middle" fill="white" font-weight="bold">梯度IR</text>
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#36D1DC"/>
+                            </marker>
+                        </defs>
+                        <text x="130" y="55" fill="#2D3047" font-size="14">梯度变换</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M17 3H7c-1.1 0-1.99.9-1.99 2L5 21l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z"/>
+                    </svg>
+                    检查点技术
+                </h2>
+                <p>通过智能存储策略平衡内存与计算开销，实现大规模模型训练。</p>
+                <ul>
+                    <li><span class="highlight">选择性存储</span>：仅存储关键中间结果</li>
+                    <li><span class="highlight">重计算</span>：需要时重新计算非检查点值</li>
+                    <li><span class="highlight">子图检查点</span>：将计算图分段存储</li>
+                    <li><span class="highlight">动态规划优化</span>：寻找最优检查点位置</li>
+                </ul>
+                <p>MLIR实现策略：</p>
+                <ol>
+                    <li>在计算图中插入检查点操作</li>
+                    <li>为检查点区域生成重计算逻辑</li>
+                    <li>优化存储布局与内存分配</li>
+                    <li>跨设备检查点支持</li>
+                </ol>
+            </div>
+
+            <div class="architecture card">
+                <h2>MLIR自动微分系统架构</h2>
+                <div class="svg-container">
+                    <svg width="600" height="300" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="50" y="30" width="200" height="50" rx="10" fill="#6C63FF" opacity="0.9"/>
+                        <text x="150" y="60" text-anchor="middle" fill="white" font-weight="bold">前端模型表示</text>
+                        
+                        <rect x="300" y="30" width="200" height="50" rx="10" fill="#FF6584" opacity="0.9"/>
+                        <text x="400" y="60" text-anchor="middle" fill="white" font-weight="bold">MLIR核心IR</text>
+                        
+                        <rect x="50" y="120" width="150" height="50" rx="10" fill="#36D1DC" opacity="0.9"/>
+                        <text x="125" y="150" text-anchor="middle" fill="white" font-weight="bold">梯度操作注册</text>
+                        
+                        <rect x="250" y="120" width="150" height="50" rx="10" fill="#36D1DC" opacity="0.9"/>
+                        <text x="325" y="150" text-anchor="middle" fill="white" font-weight="bold">模式匹配引擎</text>
+                        
+                        <rect x="450" y="120" width="150" height="50" rx="10" fill="#36D1DC" opacity="0.9"/>
+                        <text x="525" y="150" text-anchor="middle" fill="white" font-weight="bold">检查点管理</text>
+                        
+                        <rect x="200" y="210" width="250" height="50" rx="10" fill="#2D3047" opacity="0.9"/>
+                        <text x="325" y="240" text-anchor="middle" fill="white" font-weight="bold">可微分后端代码</text>
+                        
+                        <path d="M150,80 L300,80" stroke="#2D3047" stroke-width="2" stroke-dasharray="5,5"/>
+                        <path d="M150,80 L125,120" stroke="#2D3047" stroke-width="2"/>
+                        <path d="M300,80 L325,120" stroke="#2D3047" stroke-width="2"/>
+                        <path d="M500,80 L525,120" stroke="#2D3047" stroke-width="2"/>
+                        <path d="M125,170 L200,210" stroke="#2D3047" stroke-width="2"/>
+                        <path d="M325,170 L325,210" stroke="#2D3047" stroke-width="2"/>
+                        <path d="M525,170 L450,210" stroke="#2D3047" stroke-width="2"/>
+                        
+                        <text x="225" y="95" fill="#2D3047" font-size="12"> lowering</text>
+                        <text x="75" y="110" fill="#2D3047" font-size="12"> 梯度规则</text>
+                        <text x="375" y="110" fill="#2D3047" font-size="12"> 变换</text>
+                        <text x="535" y="110" fill="#2D3047" font-size="12"> 内存优化</text>
+                    </svg>
+                </div>
+                <p>MLIR自动微分系统提供多层次、可扩展的梯度计算框架，支持从高级模型表示到底层硬件代码的全栈微分。</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大规模编译与分布式编译 | MLIR系列课程</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FF;
+            --dark: #2A2D43;
+            --text: #333344;
+            --shadow: rgba(108, 99, 255, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7ff 0%, #e3eeff 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px var(--shadow);
+            overflow: hidden;
+            border: 2px solid var(--light);
+            position: relative;
+        }
+        header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+            letter-spacing: 1px;
+        }
+        .subtitle {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 40px;
+            background: var(--secondary);
+            border-radius: 20px;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .section {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--accent);
+            display: inline-block;
+        }
+        h3 {
+            color: var(--secondary);
+            margin: 20px 0 10px;
+            font-size: 1.3rem;
+        }
+        p {
+            line-height: 1.7;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 25px 0;
+        }
+        svg {
+            max-width: 100%;
+            height: auto;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #ffef78 0%, #ffef78 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+                padding: 30px;
+            }
+            h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>大规模编译与分布式编译</h1>
+            <div class="subtitle">IR的分区、并行转换、编译缓存策略</div>
+            <div class="decoration"></div>
+        </header>
+        
+        <div class="content">
+            <div class="section">
+                <h2>IR分区策略</h2>
+                <p>在大规模模型编译中，单个巨大的IR模块会带来内存和计算瓶颈。IR分区是将大型IR图分解为可独立或协同处理的子图的过程。</p>
+                
+                <h3>分区原则</h3>
+                <ul>
+                    <li><span class="highlight">数据流切割</span>：根据算子间的数据依赖关系进行切割，最小化跨分区通信。</li>
+                    <li><span class="highlight">计算密集区隔离</span>：将计算密集型子图（如卷积、注意力）单独分区。</li>
+                    <li><span class="highlight">设备边界对齐</span>：在多设备场景下，按设备边界分区以减少数据移动。</li>
+                    <li><span class="highlight">可并行性识别</span>：识别可并行执行的子图区域进行分离。</li>
+                </ul>
+                
+                <h3>技术实现</h3>
+                <table>
+                    <thead>
+                        <tr><th>方法</th><th>描述</th><th>适用场景</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>基于SCC的分区</td><td>利用强连通分量算法识别循环依赖子图</td><td>循环神经网络、控制流密集模型</td></tr>
+                        <tr><td>基于代价模型的分区</td><td>根据预估计算/通信代价进行切割</td><td>多设备分布式训练</td></tr>
+                        <tr><td>层次化分区</td><td>多级分区：设备级→芯片级→核心级</td><td>超大规模模型（万亿参数）</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2>并行转换策略</h2>
+                <p>在分区基础上，对多个IR子图同时进行编译优化，充分利用多核/多机资源。</p>
+                
+                <h3>并行粒度</h3>
+                <ol>
+                    <li><strong>Pass级并行</strong>：不同Pass在不同分区上同时执行</li>
+                    <li><strong>子图级并行</strong>：多个独立子图同时进行转换流水线</li>
+                    <li><strong>操作级并行</strong>：IR中的独立操作同时进行模式匹配与重写</li>
+                </ol>
+                
+                <div class="svg-container">
+                    <svg width="400" height="200" viewBox="0 0 400 200">
+                        <rect x="20" y="30" width="360" height="140" rx="10" fill="#F0F4FF" stroke="#6C63FF" stroke-width="2"/>
+                        <text x="200" y="60" text-anchor="middle" fill="#2A2D43" font-size="16" font-weight="600">并行转换架构</text>
+                        
+                        <rect x="50" y="80" width="80" height="40" rx="5" fill="#36D1DC"/>
+                        <text x="90" y="105" text-anchor="middle" fill="white" font-size="12">分区A</text>
+                        
+                        <rect x="160" y="80" width="80" height="40" rx="5" fill="#FF6584"/>
+                        <text x="200" y="105" text-anchor="middle" fill="white" font-size="12">分区B</text>
+                        
+                        <rect x="270" y="80" width="80" height="40" rx="5" fill="#6C63FF"/>
+                        <text x="310" y="105" text-anchor="middle" fill="white" font-size="12">分区C</text>
+                        
+                        <line x1="130" y1="100" x2="160" y2="100" stroke="#2A2D43" stroke-width="2" stroke-dasharray="5,5"/>
+                        <line x1="240" y1="100" x2="270" y2="100" stroke="#2A2D43" stroke-width="2" stroke-dasharray="5,5"/>
+                        
+                        <circle cx="90" y="150" r="8" fill="#36D1DC"/>
+                        <circle cx="200" y="150" r="8" fill="#FF6584"/>
+                        <circle cx="310" y="150" r="8" fill="#6C63FF"/>
+                        <text x="90" y="175" text-anchor="middle" fill="#2A2D43" font-size="11">并行Pass</text>
+                        <text x="200" y="175" text-anchor="middle" fill="#2A2D43" font-size="11">并行Pass</text>
+                        <text x="310" y="175" text-anchor="middle" fill="#2A2D43" font-size="11">并行Pass</text>
+                    </svg>
+                </div>
+                
+                <h3>同步机制</h3>
+                <p>使用<strong>屏障同步</strong>、<strong>版本控制</strong>和<strong>依赖跟踪</strong>确保并行转换的正确性，避免数据竞争和死锁。</p>
+            </div>
+            
+            <div class="section full-width">
+                <h2>编译缓存策略</h2>
+                <p>为减少重复编译开销，设计多级缓存系统存储中间编译结果。</p>
+                
+                <div class="svg-container">
+                    <svg width="700" height="220" viewBox="0 0 700 220">
+                        <rect x="10" y="10" width="680" height="200" rx="15" fill="#F8F9FF" stroke="#6C63FF" stroke-width="2"/>
+                        
+                        <rect x="50" y="50" width="150" height="60" rx="8" fill="#FF6584"/>
+                        <text x="125" y="85" text-anchor="middle" fill="white" font-size="14" font-weight="600">源码/IR指纹</text>
+                        <text x="125" y="130" text-anchor="middle" fill="#2A2D43" font-size="12">输入层</text>
+                        
+                        <polygon points="220,80 250,70 250,90" fill="#36D1DC"/>
+                        
+                        <rect x="270" y="40" width="150" height="80" rx="8" fill="#36D1DC"/>
+                        <text x="345" y="75" text-anchor="middle" fill="white" font-size="14" font-weight="600">内存缓存</text>
+                        <text x="345" y="95" text-anchor="middle" fill="white" font-size="11">(LRU策略)</text>
+                        <text x="345" y="130" text-anchor="middle" fill="#2A2D43" font-size="12">毫秒级响应</text>
+                        
+                        <polygon points="430,80 460,70 460,90" fill="#6C63FF"/>
+                        
+                        <rect x="480" y="30" width="150" height="100" rx="8" fill="#6C63FF"/>
+                        <text x="555" y="70" text-anchor="middle" fill="white" font-size="14" font-weight="600">分布式缓存</text>
+                        <text x="555" y="90" text-anchor="middle" fill="white" font-size="11">(集群共享)</text>
+                        <text x="555" y="140" text-anchor="middle" fill="#2A2D43" font-size="12">跨会话/用户共享</text>
+                        
+                        <line x1="125" y1="110" x2="125" y2="150" stroke="#2A2D43" stroke-width="1" stroke-dasharray="3,3"/>
+                        <line x1="345" y1="110" x2="345" y2="150" stroke="#2A2D43" stroke-width="1" stroke-dasharray="3,3"/>
+                        <line x1="555" y1="110" x2="555" y2="150" stroke="#2A2D43" stroke-width="1" stroke-dasharray="3,3"/>
+                    </svg>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 20px;">
+                    <div>
+                        <h3>缓存键设计</h3>
+                        <ul>
+                            <li><strong>IR哈希</strong>：基于IR结构和内容的指纹</li>
+                            <li><strong>编译配置</strong>：目标硬件、优化级别、并行策略</li>
+                            <li><strong>环境上下文</strong>：编译器版本、系统库版本</li>
+                            <li><strong>增量标识</strong>：识别局部变更的版本戳</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3>失效策略</h3>
+                        <ul>
+                            <li><strong>时间戳失效</strong>：基于修改时间的自动失效</li>
+                            <li><strong>依赖感知失效</strong>：当依赖的IR或Pass变更时失效</li>
+                            <li><strong>容量驱动失效</strong>：LRU/LFU等经典缓存替换策略</li>
+                            <li><strong>手动版本控制</strong>：显式版本号管理</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>分布式编译架构</h2>
+                <p>将编译任务分布到多台机器执行，实现编译加速和资源扩展。</p>
+                
+                <h3>架构组件</h3>
+                <table>
+                    <thead>
+                        <tr><th>组件</th><th>职责</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>调度器</td><td>接收编译请求，分配任务到工作节点</td></tr>
+                        <tr><td>工作节点</td><td>执行实际的IR转换与优化</td></tr>
+                        <tr><td>缓存服务</td><td>提供分布式缓存存储与查询</td></tr>
+                        <tr><td>监控器</td><td>收集性能指标，动态调整策略</td></tr>
+                    </tbody>
+                </table>
+                
+                <h3>通信模式</h3>
+                <ul>
+                    <li><span class="highlight">任务窃取</span>：空闲节点从繁忙节点获取任务</li>
+                    <li><span class="highlight">结果聚合</span>：子编译结果合并为最终二进制</li>
+                    <li><span class="highlight">状态同步</span>：定期同步编译进度与元数据</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h2>工程最佳实践</h2>
+                <p>在实际AI编译器项目中应用大规模编译技术的经验总结。</p>
+                
+                <h3>性能调优</h3>
+                <ol>
+                    <li><strong>分区大小平衡</strong>：避免过小分区（通信开销）和过大分区（内存压力）</li>
+                    <li><strong>动态负载均衡</strong>：根据节点性能实时调整任务分配</li>
+                    <li><strong>预热缓存</strong>：预编译常用模式到缓存中</li>
+                    <li><strong>渐进式编译</strong>：优先编译关键路径，后台编译其余部分</li>
+                </ol>
+                
+                <h3>调试与验证</h3>
+                <ul>
+                    <li>确定性编译：确保并行编译结果与串行一致</li>
+                    <li>分区可视化工具：直观展示IR分区效果</li>
+                    <li>性能剖析：识别编译过程中的瓶颈</li>
+                    <li>回退机制：分布式失败时降级为本地编译</li>
+                </ul>
+            </div>
+        </div>
+        
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

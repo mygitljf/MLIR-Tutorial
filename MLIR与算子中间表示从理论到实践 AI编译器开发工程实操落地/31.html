@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>面向TPU/NPU的代码生成 - MLIR系列课程</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --shadow: rgba(108, 99, 255, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px var(--shadow);
+            overflow: hidden;
+            border: 8px solid white;
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M1200 120L0 16.48 0 0 1200 0 1200 120z' fill='white'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .section {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--secondary);
+            font-size: 1.8rem;
+        }
+        .section ul, .section ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+        .section li {
+            margin-bottom: 10px;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #ffef78 0%, #ffef78 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .table-container {
+            grid-column: 1 / -1;
+            overflow: hidden;
+            border-radius: 20px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+        thead {
+            background: linear-gradient(90deg, var(--dark), var(--primary));
+            color: white;
+        }
+        th, td {
+            padding: 18px 25px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tbody tr:hover {
+            background-color: #eef7ff;
+        }
+        .svg-container {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .architecture {
+            width: 100%;
+            height: 300px;
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 25px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+        .tag {
+            display: inline-block;
+            background: var(--secondary);
+            color: white;
+            padding: 8px 18px;
+            border-radius: 50px;
+            margin: 5px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+        .key-point {
+            background: linear-gradient(90deg, #e3f2fd, #f3e5f5);
+            border-left: 5px solid var(--primary);
+            padding: 20px;
+            margin: 25px 0;
+            border-radius: 0 15px 15px 0;
+        }
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+                padding: 30px;
+            }
+            .header h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>面向TPU/NPU的代码生成</h1>
+            <div class="subtitle">定制硬件指令集、张量核心映射、内存层次结构优化</div>
+            <div class="decoration"></div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>📚 核心概念</h2>
+                <p>面向专用AI加速器（TPU/NPU）的代码生成是AI编译器的关键环节，旨在将高级计算图高效映射到底层硬件。</p>
+                <ul>
+                    <li><span class="highlight">定制硬件指令集</span>：针对特定硬件设计专用指令，最大化计算吞吐。</li>
+                    <li><span class="highlight">张量核心映射</span>：将算子分解为硬件友好的微内核，充分利用张量计算单元。</li>
+                    <li><span class="highlight">内存层次结构优化</span>：协调片上缓存、共享内存和全局内存的数据移动。</li>
+                    <li><span class="highlight">MLIR的角色</span>：通过多层中间表示（如Vector、Affine、GPU方言）实现硬件无关优化到硬件特定代码的渐进式 lowering。</li>
+                </ul>
+                <div class="key-point">
+                    <strong>工程洞察：</strong> 成功的代码生成需要深度理解硬件架构、数据流模式以及编译器中间表示的转换能力。
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>🎯 关键技术挑战</h2>
+                <ol>
+                    <li><strong>指令集抽象</strong>：在MLIR中定义自定义操作（Custom Ops）来模拟硬件指令。</li>
+                    <li><strong>数据布局转换</strong>：将逻辑张量布局（如NCHW）转换为硬件最优的物理布局（如Tile格式）。</li>
+                    <li><strong>流水线调度</strong>：隐藏内存延迟，实现计算与数据预取的重叠。</li>
+                    <li><strong>并行度探索</strong>：平衡线程级、指令级和数据级并行。</li>
+                    <li><strong>精度与性能权衡</strong>：混合精度计算、量化指令的生成与调度。</li>
+                </ol>
+                <div style="margin-top:20px;">
+                    <span class="tag">MLIR Dialect</span>
+                    <span class="tag">Tensor Core</span>
+                    <span class="tag">Memory Tiling</span>
+                    <span class="tag">指令选择</span>
+                </div>
+            </div>
+            
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>优化阶段</th>
+                            <th>MLIR表示层</th>
+                            <th>主要任务</th>
+                            <th>目标硬件特性</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>高层优化</strong></td>
+                            <td>Linalg / Tensor</td>
+                            <td>算子融合、数据布局规划</td>
+                            <td>计算密集型模式识别</td>
+                        </tr>
+                        <tr>
+                            <td><strong>硬件映射</strong></td>
+                            <td>Vector / Affine</td>
+                            <td>循环分块、向量化、张量核心映射</td>
+                            <td>SIMD/SIMT，张量矩阵单元</td>
+                        </tr>
+                        <tr>
+                            <td><strong>指令生成</strong></td>
+                            <td>LLVM / Custom Dialect</td>
+                            <td>指令选择、调度、寄存器分配</td>
+                            <td>定制指令集、VLIW</td>
+                        </tr>
+                        <tr>
+                            <td><strong>微架构优化</strong></td>
+                            <td>底层IR / 二进制</td>
+                            <td>缓存策略、功耗管理、同步优化</td>
+                            <td>内存层次、NoC、功耗墙</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="svg-container">
+                <svg class="architecture" viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#6C63FF" />
+                            <stop offset="100%" stop-color="#36D1DC" />
+                        </linearGradient>
+                        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#FF6584" />
+                            <stop offset="100%" stop-color="#FFB347" />
+                        </linearGradient>
+                    </defs>
+                    
+                    <rect x="50" y="50" width="700" height="200" rx="15" fill="url(#grad1)" opacity="0.1" stroke="url(#grad1)" stroke-width="3"/>
+                    
+                    <rect x="100" y="80" width="120" height="60" rx="10" fill="#6C63FF" />
+                    <text x="160" y="115" text-anchor="middle" fill="white" font-weight="bold">计算图</text>
+                    
+                    <rect x="250" y="80" width="120" height="60" rx="10" fill="#36D1DC" />
+                    <text x="310" y="115" text-anchor="middle" fill="white" font-weight="bold">MLIR优化</text>
+                    
+                    <rect x="400" y="80" width="120" height="60" rx="10" fill="#FF6584" />
+                    <text x="460" y="115" text-anchor="middle" fill="white" font-weight="bold">硬件映射</text>
+                    
+                    <rect x="550" y="80" width="120" height="60" rx="10" fill="#FFB347" />
+                    <text x="610" y="115" text-anchor="middle" fill="white" font-weight="bold">代码生成</text>
+                    
+                    <polygon points="220,110 250,110" fill="none" stroke="#2D3047" stroke-width="3" marker-end="url(#arrow)"/>
+                    <polygon points="370,110 400,110" fill="none" stroke="#2D3047" stroke-width="3" marker-end="url(#arrow)"/>
+                    <polygon points="520,110 550,110" fill="none" stroke="#2D3047" stroke-width="3" marker-end="url(#arrow)"/>
+                    
+                    <rect x="100" y="180" width="600" height="50" rx="10" fill="url(#grad2)" opacity="0.2" stroke="url(#grad2)" stroke-width="2"/>
+                    <text x="400" y="210" text-anchor="middle" fill="#2D3047" font-weight="bold">定制指令集 | 张量核心映射 | 内存层次优化</text>
+                    
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#2D3047"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+            
+            <div class="section">
+                <h2>🔧 工程实践要点</h2>
+                <ul>
+                    <li><strong>渐进式Lowering</strong>：通过多级MLIR方言逐步降低抽象层次，每层进行特定优化。</li>
+                    <li><strong>模式匹配与重写</strong>：使用MLIR的DRR（Declarative Rewrite Rule）或PDL将计算模式映射到硬件指令。</li>
+                    <li><strong>性能建模</strong>：基于硬件参数（带宽、计算峰值、延迟）构建代价模型，指导优化决策。</li>
+                    <li><strong>测试与验证</strong>：构建端到端的测试框架，确保功能正确性与性能达标。</li>
+                    <li><strong>与硬件协同设计</strong>：编译器团队与硬件架构师紧密合作，实现软硬件协同优化。</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h2>🚀 未来趋势</h2>
+                <ul>
+                    <li><strong>自动化代码生成</strong>：基于机器学习的自动调度（Auto-scheduling）与自动张量化（Auto-tensorization）。</li>
+                    <li><strong>异构编译</strong>：统一编译框架支持CPU、GPU、TPU/NPU等多种后端。</li>
+                    <li><strong>可定制化架构</strong>：面向领域特定架构（DSA）的敏捷编译器设计。</li>
+                    <li><strong>开源生态</strong>：MLIR社区驱动的硬件后端贡献（如RISC-V Vector、AMD GPU、NPU IP）。</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

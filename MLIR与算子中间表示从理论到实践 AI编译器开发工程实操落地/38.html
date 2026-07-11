@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR生态系统与社区</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --shadow: rgba(108, 99, 255, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px var(--shadow);
+            overflow: hidden;
+            border: 8px solid white;
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none"><path d="M0,0V46.29c47.79,22.2,103.59,32.17,158,28,70.36-5.37,136.33-33.31,206.8-37.5C438.64,32.43,512.34,53.67,583,72.05c69.27,18,138.3,24.88,209.4,13.08,36.15-6,69.85-17.84,104.45-29.34C989.49,25,1113-14.29,1200,52.47V0Z" opacity=".25" fill="white"/><path d="M0,0V15.81C13,36.92,27.64,56.86,47.69,72.05,99.41,111.27,165,111,224.58,91.58c31.15-10.15,60.09-26.07,89.67-39.8,40.92-19,84.73-46,130.83-49.67,36.26-2.85,70.9,9.42,98.6,31.56,31.77,25.39,62.32,62,103.63,73,40.44,10.79,81.35-6.69,119.13-24.28s75.16-39,116.92-43.05c59.73-5.85,113.28,22.88,168.9,38.84,30.2,8.66,59,6.17,87.09-7.5,22.43-10.89,48-26.93,60.65-49.24V0Z" opacity=".5" fill="white"/><path d="M0,0V5.63C149.93,59,314.09,71.32,475.83,42.57c43-7.64,84.23-20.12,127.61-26.46,59-8.63,112.48,12.24,165.56,35.4C827.93,77.22,886,95.24,951.2,90c86.53-7,172.46-45.71,248.8-84.81V0Z" fill="white"/></svg>');
+            background-size: cover;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 24px;
+            padding: 35px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border-top: 8px solid var(--primary);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 40px var(--shadow);
+        }
+        .card h2 {
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .card h2 svg {
+            width: 32px;
+            height: 32px;
+        }
+        .card ul, .card ol {
+            padding-left: 25px;
+            margin-bottom: 25px;
+            line-height: 1.8;
+            font-size: 1.1rem;
+        }
+        .card li {
+            margin-bottom: 12px;
+            color: var(--dark);
+        }
+        .card p {
+            line-height: 1.8;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 18px;
+            border-bottom: 1px solid #eee;
+            background: white;
+        }
+        tr:hover td {
+            background: #f9f9ff;
+        }
+        .architecture {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            border: 3px dashed var(--accent);
+        }
+        .architecture svg {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #FFEB3B30, #36D1DC30);
+            padding: 25px;
+            border-radius: 20px;
+            margin: 30px 0;
+            border-left: 6px solid var(--secondary);
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+        .tag {
+            display: inline-block;
+            background: var(--secondary);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            margin: 5px;
+            font-weight: bold;
+        }
+        .step {
+            counter-increment: step;
+            margin-bottom: 25px;
+            padding-left: 60px;
+            position: relative;
+        }
+        .step:before {
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            background: var(--accent);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        ol.steps {
+            counter-reset: step;
+            list-style: none;
+            padding-left: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MLIR生态系统与社区</h1>
+            <p>深入探索MLIR关键项目、贡献流程与RFC机制，构建下一代编译基础设施</p>
+            <div class="decoration"></div>
+        </div>
+
+        <div class="content">
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                    </svg>
+                    关键项目概览
+                </h2>
+                <p>MLIR生态系统围绕核心基础设施，孵化出多个关键项目，旨在解决不同领域的编译与部署挑战。</p>
+                
+                <div class="architecture">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300">
+                        <rect x="50" y="50" width="500" height="200" rx="15" fill="#F0F4FF" stroke="#6C63FF" stroke-width="3"/>
+                        <text x="300" y="85" text-anchor="middle" font-size="18" font-weight="bold" fill="#2D3047">MLIR 核心基础设施</text>
+                        
+                        <rect x="100" y="120" width="150" height="60" rx="10" fill="#FF6584" stroke="#D14A6A" stroke-width="2"/>
+                        <text x="175" y="155" text-anchor="middle" font-size="14" fill="white" font-weight="bold">IREE</text>
+                        <text x="175" y="175" text-anchor="middle" font-size="12" fill="white">部署运行时</text>
+                        
+                        <rect x="300" y="120" width="150" height="60" rx="10" fill="#36D1DC" stroke="#2AA9B5" stroke-width="2"/>
+                        <text x="375" y="155" text-anchor="middle" font-size="14" fill="white" font-weight="bold">NPComp</text>
+                        <text x="375" y="175" text-anchor="middle" font-size="12" fill="white">NumPy 编译器</text>
+                        
+                        <line x1="250" y1="150" x2="300" y2="150" stroke="#6C63FF" stroke-width="2" stroke-dasharray="5,5"/>
+                        <line x1="450" y1="150" x2="500" y2="150" stroke="#6C63FF" stroke-width="2" stroke-dasharray="5,5"/>
+                        
+                        <rect x="50" y="200" width="120" height="40" rx="8" fill="#A78BFA" opacity="0.8"/>
+                        <text x="110" y="225" text-anchor="middle" font-size="12" fill="white">Torch-MLIR</text>
+                        
+                        <rect x="190" y="200" width="120" height="40" rx="8" fill="#34D399" opacity="0.8"/>
+                        <text x="250" y="225" text-anchor="middle" font-size="12" fill="white">HLO → MLIR</text>
+                        
+                        <rect x="330" y="200" width="120" height="40" rx="8" fill="#FBBF24" opacity="0.8"/>
+                        <text x="390" y="225" text-anchor="middle" font-size="12" fill="white">Openxla</text>
+                    </svg>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>项目名称</th>
+                            <th>核心目标</th>
+                            <th>应用领域</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>IREE</strong></td>
+                            <td>构建可移植、高效且可扩展的机器学习部署运行时</td>
+                            <td>移动端、边缘设备、服务器端部署</td>
+                        </tr>
+                        <tr>
+                            <td><strong>NPComp</strong></td>
+                            <td>将NumPy程序编译为高效的可执行代码</td>
+                            <td>科学计算、数据科学、Python加速</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Torch-MLIR</strong></td>
+                            <td>连接PyTorch生态与MLIR编译栈</td>
+                            <td>PyTorch模型优化与部署</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 4a4 4 0 014 4 4 4 0 01-4 4 4 4 0 01-4-4 4 4 0 014-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z"/>
+                    </svg>
+                    社区贡献流程
+                </h2>
+                <p>MLIR社区采用开放、透明的协作模式，欢迎开发者通过标准化的流程参与贡献。</p>
+                
+                <ol class="steps">
+                    <li class="step">
+                        <strong>环境准备</strong><br/>
+                        克隆仓库，配置开发环境，确保能通过基础测试。
+                    </li>
+                    <li class="step">
+                        <strong>选择任务</strong><br/>
+                        从GitHub Issues中挑选“good first issue”或参与RFC讨论。
+                    </li>
+                    <li class="step">
+                        <strong>实现与测试</strong><br/>
+                        编写代码，添加单元测试，并通过所有相关测试套件。
+                    </li>
+                    <li class="step">
+                        <strong>代码审查</strong><br/>
+                        提交Pull Request，接受社区核心开发者的详细审查。
+                    </li>
+                    <li class="step">
+                        <strong>合并与维护</strong><br/>
+                        审查通过后，代码被合并，贡献者成为社区一员。
+                    </li>
+                </ol>
+
+                <div class="highlight">
+                    <p><strong>💡 高效贡献提示：</strong> 在开始编码前，务必在相关Issue或论坛中讨论你的设计方案。小规模、聚焦的PR更容易被接受。积极参与代码审查，学习社区编码规范。</p>
+                </div>
+
+                <div style="margin-top: 25px;">
+                    <span class="tag">GitHub</span>
+                    <span class="tag">Code Review</span>
+                    <span class="tag">Testing</span>
+                    <span class="tag">CI/CD</span>
+                    <span class="tag">Community</span>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 10h2v7H7zm4-3h2v10h-2zm4-3h2v13h-2z"/>
+                    </svg>
+                    RFC机制详解
+                </h2>
+                <p>RFC（Request For Comments）是MLIR社区进行重大设计决策的核心机制，确保变更经过充分讨论与共识。</p>
+                
+                <h3 style="color: var(--secondary); margin-top: 25px; margin-bottom: 15px;">📋 RFC 生命周期</h3>
+                <ul>
+                    <li><strong>提案起草：</strong> 使用模板撰写RFC文档，描述动机、设计与影响。</li>
+                    <li><strong>社区讨论：</strong> 在邮件列表或GitHub Discussion中公开讨论，收集反馈。</li>
+                    <li><strong>迭代修改：</strong> 根据反馈修改提案，可能经历多轮讨论。</li>
+                    <li><strong>决策与实施：</strong> 核心团队做出决策，通过后进入实施阶段。</li>
+                    <li><strong>归档与追踪：</strong> RFC被归档，实施过程被追踪直至完成。</li>
+                </ul>
+
+                <h3 style="color: var(--secondary); margin-top: 25px; margin-bottom: 15px;">🎯 成功RFC的关键要素</h3>
+                <table>
+                    <tr>
+                        <td><strong>问题清晰</strong></td>
+                        <td>明确定义要解决的具体问题及其范围</td>
+                    </tr>
+                    <tr>
+                        <td><strong>方案具体</strong></td>
+                        <td>提供可实施的详细设计方案与API变更</td>
+                    </tr>
+                    <tr>
+                        <td><strong>权衡分析</strong></td>
+                        <td>分析替代方案，解释为何选择当前方案</td>
+                    </tr>
+                    <tr>
+                        <td><strong>影响评估</strong></td>
+                        <td>评估对现有代码、用户和生态的影响</td>
+                    </tr>
+                </table>
+
+                <p style="margin-top: 20px;">RFC机制确保了MLIR架构的演进既具有创新性，又保持稳定性和一致性，是社区集体智慧的体现。</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

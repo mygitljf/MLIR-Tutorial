@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR调试与测试框架精要</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #FFFAF0;
+            --dark: #2D3047;
+            --text: #333333;
+            --bg: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(108, 99, 255, 0.2);
+            overflow: hidden;
+            border: 8px solid var(--primary);
+            position: relative;
+        }
+        header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            border-bottom: 6px solid var(--secondary);
+        }
+        h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .subtitle {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+        .content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 25px;
+            border-left: 8px solid;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card:nth-child(1) { border-color: #6C63FF; }
+        .card:nth-child(2) { border-color: #FF6584; }
+        .card:nth-child(3) { border-color: #36D1DC; }
+        .card:nth-child(4) { border-color: #FFB347; }
+        h2 {
+            color: var(--dark);
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h2 svg {
+            width: 28px;
+            height: 28px;
+        }
+        p, li {
+            line-height: 1.7;
+            font-size: 1.05rem;
+        }
+        ul, ol {
+            padding-left: 20px;
+            margin: 15px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .architecture {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            grid-column: 1 / -1;
+            text-align: center;
+            border: 3px dashed var(--accent);
+        }
+        .architecture svg {
+            max-width: 100%;
+            height: auto;
+        }
+        footer {
+            text-align: center;
+            padding: 30px;
+            background: var(--dark);
+            color: white;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+            border-top: 6px solid var(--secondary);
+        }
+        .highlight {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        .emoji {
+            font-size: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>MLIR调试与测试框架精要</h1>
+            <div class="subtitle">FileCheck · Lit测试框架 · MLIR验证器 · 图形化IR查看器</div>
+        </header>
+        <div class="content">
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,4A8,8 0 0,1 20,12A8,8 0 0,1 12,20A8,8 0 0,1 4,12A8,8 0 0,1 12,4M10.5,9A1.5,1.5 0 0,0 9,10.5A1.5,1.5 0 0,0 10.5,12A1.5,1.5 0 0,0 12,10.5A1.5,1.5 0 0,0 10.5,9M7,9.5C6.17,9.5 5.5,10.17 5.5,11C5.5,11.83 6.17,12.5 7,12.5C7.83,12.5 8.5,11.83 8.5,11C8.5,10.17 7.83,9.5 7,9.5M17,9.5C16.17,9.5 15.5,10.17 15.5,11C15.5,11.83 16.17,12.5 17,12.5C17.83,12.5 18.5,11.83 18.5,11C18.5,10.17 17.83,9.5 17,9.5Z"/></svg>FileCheck工具</h2>
+                <p><span class="highlight">FileCheck</span> 是一个基于文本模式匹配的验证工具，广泛用于LLVM和MLIR的测试中。它通过读取输入文件中的CHECK指令，与程序的实际输出进行比对，从而验证IR变换、优化结果或诊断信息的正确性。</p>
+                <ul>
+                    <li><strong>模式匹配</strong>：支持正则表达式、变量捕获、重复模式等。</li>
+                    <li><strong>灵活定位</strong>：可指定匹配顺序或允许乱序匹配。</li>
+                    <li><strong>集成友好</strong>：与Lit测试框架无缝集成，是MLIR单元测试的基石。</li>
+                </ul>
+                <table>
+                    <tr><th>指令</th><th>功能</th><th>示例</th></tr>
+                    <tr><td>CHECK</td><td>基本匹配模式</td><td>// CHECK: %0 = arith.addi</td></tr>
+                    <tr><td>CHECK-LABEL</td><td>标记测试区块</td><td>// CHECK-LABEL: func.func @test</td></tr>
+                    <tr><td>CHECK-NOT</td><td>禁止出现模式</td><td>// CHECK-NOT: "discard_op"</td></tr>
+                    <tr><td>CHECK-DAG</td><td>允许乱序匹配</td><td>// CHECK-DAG: pattern1</td></tr>
+                </table>
+            </div>
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path fill="currentColor" d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>Lit测试框架</h2>
+                <p><span class="highlight">Lit（LLVM Integrated Tester）</span> 是一个轻量级、可移植的测试运行器，用于执行LLVM和MLIR项目中的测试套件。它通过解析测试文件中的RUN指令，调用相应工具并检查返回结果。</p>
+                <ol>
+                    <li><strong>测试发现</strong>：递归扫描目录，识别包含RUN指令的测试文件。</li>
+                    <li><strong>命令执行</strong>：执行RUN行中定义的命令序列（如mlir-opt、mlir-translate）。</li>
+                    <li><strong>结果验证</strong>：结合FileCheck验证输出，或检查退出码。</li>
+                </ol>
+                <p><strong>典型测试文件结构：</strong></p>
+                <pre style="background:#f5f5f5;padding:15px;border-radius:10px;margin-top:10px;">
+// RUN: mlir-opt %s --pass-to-apply | FileCheck %s
+
+func.func @example(%arg0: f32) -> f32 {
+  // CHECK: arith.addf
+  %0 = arith.addf %arg0, %arg0 : f32
+  return %0 : f32
+}</pre>
+            </div>
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path fill="currentColor" d="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1M11,7H13V9H15V11H13V13H11V11H9V9H11V7M14.75,14.66L10.75,18.66L9.16,17.08L11,15.24L10.75,15L9.16,16.58L7.91,15.33L10.09,13.08C9.39,12.31 9,11.34 9,10.33C9,7.85 11.1,5.74 13.58,5.74C16.06,5.74 18.17,7.85 18.17,10.33C18.17,12.81 16.06,14.91 13.58,14.91C13.58,14.91 14.25,14.66 14.75,14.66Z"/></svg>MLIR验证器</h2>
+                <p><span class="highlight">MLIR验证器</span> 是确保IR合法性与一致性的核心组件。它在编译流程的各个阶段自动运行，检查操作、类型、属性、区域、块等是否符合Dialect定义和MLIR规范。</p>
+                <ul>
+                    <li><strong>静态验证</strong>：基于操作定义（ODS）自动生成验证逻辑。</li>
+                    <li><strong>动态检查</strong>：在转换过程中断言IR状态，及早发现错误。</li>
+                    <li><strong>自定义验证</strong>：允许Dialect开发者添加特定约束。</li>
+                </ul>
+                <p><strong>验证层次：</strong></p>
+                <ol>
+                    <li><strong>语法验证</strong>：IR格式、术语符匹配。</li>
+                    <li><strong>语义验证</strong>：操作数类型匹配、区域结构、副作用合规。</li>
+                    <li><strong>转换后验证</strong>：确保变换未破坏IR不变性。</li>
+                </ol>
+            </div>
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path fill="currentColor" d="M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L5,8.09V15.91L12,19.85L19,15.91V8.09L12,4.15Z"/></svg>图形化IR查看器</h2>
+                <p><span class="highlight">图形化IR查看器</span> 将文本形式的MLIR转换为可视化图表，极大提升了复杂IR结构的理解与调试效率。工具如 <strong>MLIR Visualizer</strong> 或 <strong>Jupyter Notebook插件</strong> 支持交互式探索。</p>
+                <ul>
+                    <li><strong>层次化展示</strong>：以节点-边图形式呈现操作、块、区域。</li>
+                    <li><strong>交互操作</strong>：展开/折叠区域、高亮数据流、查看属性。</li>
+                    <li><strong>转换对比</strong>：可视化展示Pass应用前后的IR变化。</li>
+                </ul>
+                <p><strong>典型工作流：</strong></p>
+                <ol>
+                    <li>导出IR到.dot或.svg格式。</li>
+                    <li>通过图形工具（如Graphviz）渲染。</li>
+                    <li>在浏览器或IDE中交互查看。</li>
+                </ol>
+            </div>
+            <div class="architecture">
+                <h2>MLIR调试与测试架构全景</h2>
+                <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="50" y="50" width="700" height="300" rx="15" fill="#f0f8ff" stroke="#6C63FF" stroke-width="3"/>
+                    <rect x="100" y="100" width="150" height="60" rx="10" fill="#FF6584" stroke="#333" stroke-width="2"/>
+                    <text x="175" y="135" text-anchor="middle" fill="white" font-weight="bold" font-size="16">源码/IR文件</text>
+                    <rect x="300" y="100" width="150" height="60" rx="10" fill="#36D1DC" stroke="#333" stroke-width="2"/>
+                    <text x="375" y="135" text-anchor="middle" fill="white" font-weight="bold" font-size="16">MLIR验证器</text>
+                    <rect x="500" y="100" width="150" height="60" rx="10" fill="#6C63FF" stroke="#333" stroke-width="2"/>
+                    <text x="575" y="135" text-anchor="middle" fill="white" font-weight="bold" font-size="16">转换Pass</text>
+                    <rect x="200" y="200" width="150" height="60" rx="10" fill="#FFB347" stroke="#333" stroke-width="2"/>
+                    <text x="275" y="235" text-anchor="middle" fill="white" font-weight="bold" font-size="16">Lit测试框架</text>
+                    <rect x="400" y="200" width="150" height="60" rx="10" fill="#9D4EDD" stroke="#333" stroke-width="2"/>
+                    <text x="475" y="235" text-anchor="middle" fill="white" font-weight="bold" font-size="16">FileCheck</text>
+                    <rect x="300" y="300" width="150" height="60" rx="10" fill="#2EC4B6" stroke="#333" stroke-width="2"/>
+                    <text x="375" y="335" text-anchor="middle" fill="white" font-weight="bold" font-size="16">图形化查看器</text>
+                    <path d="M175 160 L175 190 L275 220" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M325 160 L325 190 L275 220" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M425 160 L425 190 L475 220" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M575 160 L575 190 L525 220" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M275 260 L275 290 L325 300" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M475 260 L475 290 L425 300" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
+                        </marker>
+                    </defs>
+                </svg>
+                <p style="margin-top:20px;">各组件协同工作，构成从IR验证、转换、测试到可视化调试的完整闭环。</p>
+            </div>
+        </div>
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

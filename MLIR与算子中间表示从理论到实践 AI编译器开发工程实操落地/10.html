@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR IR遍历与变换</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --shadow: rgba(108, 99, 255, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px 50px;
+            text-align: center;
+            position: relative;
+        }
+        header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        header .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 60px;
+            background: var(--secondary);
+            clip-path: polygon(10% 0%, 90% 0%, 100% 100%, 0% 100%);
+        }
+        main {
+            padding: 60px 50px;
+        }
+        section {
+            margin-bottom: 60px;
+        }
+        h2 {
+            color: var(--primary);
+            font-size: 2rem;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid var(--accent);
+            display: inline-block;
+        }
+        p {
+            line-height: 1.8;
+            margin-bottom: 20px;
+            font-size: 1.1rem;
+        }
+        .highlight {
+            background: linear-gradient(120deg, rgba(108, 99, 255, 0.1) 0%, rgba(54, 209, 220, 0.1) 100%);
+            padding: 25px;
+            border-radius: 18px;
+            border-left: 6px solid var(--secondary);
+            margin: 25px 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border-top: 6px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card h3 {
+            color: var(--dark);
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        .card ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .card li {
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+            position: relative;
+            padding-left: 25px;
+        }
+        .card li:before {
+            content: "✓";
+            color: var(--secondary);
+            font-weight: bold;
+            position: absolute;
+            left: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+        }
+        td {
+            padding: 18px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 40px 0;
+        }
+        svg {
+            max-width: 100%;
+            height: auto;
+        }
+        footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+        .keyword {
+            display: inline-block;
+            background: var(--accent);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 30px;
+            margin: 5px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .comparison {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        .comparison-box {
+            flex: 1;
+            min-width: 300px;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+        }
+        .comparison-box h3 {
+            color: var(--secondary);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>中间表示（IR）的遍历与变换</h1>
+            <div class="subtitle">Walkers、Rewriters、访问者模式在MLIR中的应用与实践指南</div>
+            <div class="decoration"></div>
+        </header>
+        <main>
+            <section>
+                <h2>核心概念</h2>
+                <p>在MLIR编译框架中，中间表示（IR）的遍历与变换是编译器优化的基石。通过系统化的遍历机制，我们可以分析、转换和优化IR图，从而实现从高层抽象到底层代码的逐步 lowering。</p>
+                <div class="highlight">
+                    <p><strong>关键目标：</strong> 提供高效、安全、可组合的IR操作接口，支持复杂的编译器转换与优化过程。</p>
+                    <p>
+                        <span class="keyword">Walker</span>
+                        <span class="keyword">Rewriter</span>
+                        <span class="keyword">访问者模式</span>
+                        <span class="keyword">Pattern Rewrite</span>
+                        <span class="keyword">IR Transformation</span>
+                    </p>
+                </div>
+            </section>
+
+            <section>
+                <h2>三种核心机制对比</h2>
+                <div class="comparison">
+                    <div class="comparison-box">
+                        <h3>Walkers</h3>
+                        <ul>
+                            <li>深度优先遍历IR</li>
+                            <li>适用于分析和收集信息</li>
+                            <li>不修改IR结构</li>
+                            <li>回调函数驱动</li>
+                            <li>支持前序/后序遍历</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-box">
+                        <h3>Rewriters</h3>
+                        <ul>
+                            <li>基于模式的IR变换</li>
+                            <li>安全地修改IR图</li>
+                            <li>支持撤销操作</li>
+                            <li>驱动优化和 lowering</li>
+                            <li>与Dialect解耦</li>
+                        </ul>
+                    </div>
+                    <div class="comparison-box">
+                        <h3>访问者模式</h3>
+                        <ul>
+                            <li>面向对象设计模式</li>
+                            <li>双分派实现类型安全</li>
+                            <li>扩展性强</li>
+                            <li>常用于AST遍历</li>
+                            <li>MLIR中的辅助工具</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>应用场景与选择指南</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>任务类型</th>
+                            <th>推荐机制</th>
+                            <th>优势</th>
+                            <th>示例</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>IR分析与统计</strong></td>
+                            <td>Walker</td>
+                            <td>简单直接，性能高效</td>
+                            <td>计算操作数量、类型分布</td>
+                        </tr>
+                        <tr>
+                            <td><strong>局部模式匹配与替换</strong></td>
+                            <td>Rewriter</td>
+                            <td>安全、可组合、支持撤销</td>
+                            <td>常量折叠、代数简化</td>
+                        </tr>
+                        <tr>
+                            <td><strong>复杂多类型处理</strong></td>
+                            <td>访问者模式</td>
+                            <td>类型安全、扩展性好</td>
+                            <td>自定义Dialect转换</td>
+                        </tr>
+                        <tr>
+                            <td><strong>跨Dialect lowering</strong></td>
+                            <td>Rewriter + Pattern</td>
+                            <td>模块化、可重用</td>
+                            <td>从Tensor到MemRef的转换</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h2>MLIR中的架构流程</h2>
+                <div class="svg-container">
+                    <svg width="800" height="300" viewBox="0 0 800 300">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#6C63FF;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#36D1DC;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" style="stop-color:#FF6584;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#FFB347;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        
+                        <rect x="50" y="120" width="140" height="60" rx="10" fill="url(#grad1)" stroke="#2D3047" stroke-width="2"/>
+                        <text x="120" y="155" fill="white" text-anchor="middle" font-weight="bold">原始IR</text>
+                        
+                        <rect x="250" y="50" width="140" height="60" rx="10" fill="url(#grad2)" stroke="#2D3047" stroke-width="2"/>
+                        <text x="320" y="85" fill="white" text-anchor="middle" font-weight="bold">Walker遍历</text>
+                        
+                        <rect x="250" y="190" width="140" height="60" rx="10" fill="url(#grad2)" stroke="#2D3047" stroke-width="2"/>
+                        <text x="320" y="225" fill="white" text-anchor="middle" font-weight="bold">Rewriter变换</text>
+                        
+                        <rect x="450" y="120" width="140" height="60" rx="10" fill="url(#grad1)" stroke="#2D3047" stroke-width="2"/>
+                        <text x="520" y="155" fill="white" text-anchor="middle" font-weight="bold">优化后IR</text>
+                        
+                        <rect x="650" y="120" width="100" height="60" rx="10" fill="#2D3047" stroke="#2D3047" stroke-width="2"/>
+                        <text x="700" y="155" fill="white" text-anchor="middle" font-weight="bold">输出</text>
+                        
+                        <polygon points="200,150 240,150 235,145 240,150 235,155" fill="#2D3047"/>
+                        <line x1="200" y1="150" x2="240" y2="150" stroke="#2D3047" stroke-width="3"/>
+                        
+                        <polygon points="390,80 440,150 435,145 440,150 435,155" fill="#2D3047"/>
+                        <line x1="390" y1="80" x2="440" y2="150" stroke="#2D3047" stroke-width="3"/>
+                        
+                        <polygon points="390,220 440,150 435,145 440,150 435,155" fill="#2D3047"/>
+                        <line x1="390" y1="220" x2="440" y2="150" stroke="#2D3047" stroke-width="3"/>
+                        
+                        <polygon points="600,150 640,150 635,145 640,150 635,155" fill="#2D3047"/>
+                        <line x1="600" y1="150" x2="640" y2="150" stroke="#2D3047" stroke-width="3"/>
+                        
+                        <text x="320" y="40" fill="#2D3047" text-anchor="middle" font-size="14">分析阶段</text>
+                        <text x="320" y="280" fill="#2D3047" text-anchor="middle" font-size="14">变换阶段</text>
+                    </svg>
+                </div>
+                <p>MLIR的IR变换流程通常分为分析（Walker）和变换（Rewriter）两个阶段。分析阶段收集信息、验证约束；变换阶段应用模式匹配，安全地重写IR图。</p>
+            </section>
+
+            <section>
+                <h2>工程实践要点</h2>
+                <div class="grid">
+                    <div class="card">
+                        <h3>最佳实践</h3>
+                        <ul>
+                            <li>优先使用Rewriter进行IR变换</li>
+                            <li>Walker仅用于只读分析</li>
+                            <li>合理组织Pattern的优先级</li>
+                            <li>利用MLIR的调试基础设施</li>
+                            <li>编写可测试的转换代码</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>常见陷阱</h3>
+                        <ul>
+                            <li>在Walker中修改IR</li>
+                            <li>忽略操作副作用</li>
+                            <li>模式匹配顺序错误</li>
+                            <li>未处理边界情况</li>
+                            <li>性能热点未优化</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>调试技巧</h3>
+                        <ul>
+                            <li>使用`-debug`和`-mlir-print-ir-after-all`</li>
+                            <li>编写单元测试验证转换</li>
+                            <li>利用MLIR的验证器</li>
+                            <li>可视化IR变换过程</li>
+                            <li>性能剖析与优化</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <section>
+                <h2>总结</h2>
+                <div class="highlight">
+                    <p>MLIR提供了丰富而强大的IR遍历与变换机制，Walkers、Rewriters和访问者模式各有其适用场景。掌握这些工具的使用时机和方法，是构建高效、可靠AI编译器的关键技能。</p>
+                    <p><strong>核心原则：</strong> 分析用Walker，变换用Rewriter，复杂类型处理考虑访问者模式。始终遵循MLIR的设计哲学：模块化、可组合、可验证。</p>
+                </div>
+            </section>
+        </main>
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI编译器概述 - MLIR系列课程</title>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3a0ca3;
+            --accent-color: #f72585;
+            --light-color: #4cc9f0;
+            --background-color: #f8f9fa;
+            --card-color: #ffffff;
+            --text-color: #333333;
+            --shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background-color: var(--card-color);
+            border-radius: 24px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            padding: 40px;
+            position: relative;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--light-color);
+        }
+        h1 {
+            color: var(--primary-color);
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            color: var(--secondary-color);
+            font-size: 1.2rem;
+            font-weight: 300;
+        }
+        .content-section {
+            margin-bottom: 40px;
+        }
+        h2 {
+            color: var(--secondary-color);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-left: 15px;
+            border-left: 5px solid var(--accent-color);
+        }
+        p {
+            line-height: 1.8;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+        .highlight {
+            background-color: rgba(67, 97, 238, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 4px solid var(--primary-color);
+        }
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        .comparison-table th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 18px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        .comparison-table td {
+            padding: 16px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .comparison-table tr:nth-child(even) {
+            background-color: #f8f9ff;
+        }
+        .comparison-table tr:hover {
+            background-color: rgba(76, 201, 240, 0.1);
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+            line-height: 1.7;
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .architecture-svg {
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+        }
+        .color-box {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .primary-color { background-color: var(--primary-color); }
+        .secondary-color { background-color: var(--secondary-color); }
+        .accent-color { background-color: var(--accent-color); }
+        .light-color { background-color: var(--light-color); }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 2px dashed var(--light-color);
+            color: var(--secondary-color);
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        .tag {
+            display: inline-block;
+            background: linear-gradient(90deg, var(--light-color), var(--primary-color));
+            color: white;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+            margin: 25px 0;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to bottom, var(--light-color), var(--primary-color));
+            border-radius: 2px;
+        }
+        .timeline-item {
+            position: relative;
+            margin-bottom: 25px;
+            padding-left: 20px;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -33px;
+            top: 5px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+            border: 3px solid white;
+            box-shadow: 0 0 0 3px var(--accent-color);
+        }
+        .timeline-year {
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AI编译器概述</h1>
+            <p class="subtitle">发展历程、核心挑战、与传统编译器的区别、主流框架对比</p>
+            <div style="margin-top: 15px;">
+                <span class="tag">AI编译器</span>
+                <span class="tag">MLIR</span>
+                <span class="tag">TVM</span>
+                <span class="tag">XLA</span>
+                <span class="tag">高性能计算</span>
+            </div>
+        </header>
+
+        <section class="content-section">
+            <h2>🚀 发展历程</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <span class="timeline-year">2010年前</span>：早期阶段，AI模型推理主要依赖通用计算库（如BLAS、CuDNN），缺乏专用编译优化。
+                </div>
+                <div class="timeline-item">
+                    <span class="timeline-year">2015-2017</span>：深度学习框架爆发（TensorFlow、PyTorch），计算图抽象成为标准，出现第一代图编译器（如TensorFlow XLA、nGraph）。
+                </div>
+                <div class="timeline-item">
+                    <span class="timeline-year">2017-2019</span>：TVM提出端到端自动优化，引入Halide IR和自动调度（AutoTVM），开启AI编译器的自动化时代。
+                </div>
+                <div class="timeline-item">
+                    <span class="timeline-year">2019至今</span>：MLIR诞生，提供可扩展、多层次的中间表示，成为下一代编译器基础设施。各大厂商推出专用AI编译器（如Google的MLIR、Meta的Glow、华为的MindSpore）。
+                </div>
+            </div>
+            <p>AI编译器的发展是从<strong>手工优化</strong>到<strong>自动代码生成</strong>，再到<strong>统一编译基础设施</strong>的演进过程，目标是解决AI模型在多样硬件上的高效部署问题。</p>
+        </section>
+
+        <section class="content-section">
+            <h2>🎯 核心挑战</h2>
+            <div class="highlight">
+                <p>AI编译器面临与传统编译器截然不同的挑战，主要源于AI模型和硬件的复杂性。</p>
+            </div>
+            <ul>
+                <li><strong>硬件多样性</strong>：需要支持从CPU、GPU、NPU到FPGA、ASIC等各类加速器，每种硬件有不同的内存层次、并行模式和指令集。</li>
+                <li><strong>算子融合与优化</strong>：AI计算图由大量细粒度算子组成，需要通过算子融合、内存布局优化、常数折叠等技术减少开销。</li>
+                <li><strong>动态性与灵活性</strong>：模型可能具有动态形状、控制流和稀疏性，要求编译器能够处理运行时信息。</li>
+                <li><strong>自动调度与搜索</strong>：为每种硬件和算子找到最优的循环展开、向量化、并行化策略，通常需要巨大的搜索空间。</li>
+                <li><strong>多层级抽象</strong>：需要从高级计算图到底层机器代码的多层中间表示，以进行不同粒度的优化。</li>
+            </ul>
+        </section>
+
+        <section class="content-section">
+            <h2>🔄 与传统编译器的区别</h2>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>对比维度</th>
+                        <th>传统编译器（如GCC、LLVM）</th>
+                        <th>AI编译器（如TVM、MLIR）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>输入形式</strong></td>
+                        <td>静态编程语言（C/C++）源代码</td>
+                        <td>动态计算图、高级算子描述</td>
+                    </tr>
+                    <tr>
+                        <td><strong>优化目标</strong></td>
+                        <td>指令级优化、寄存器分配、控制流优化</td>
+                        <td>算子融合、内存布局优化、自动调度搜索</td>
+                    </tr>
+                    <tr>
+                        <td><strong>硬件目标</strong></td>
+                        <td>通用CPU（x86、ARM）</td>
+                        <td>多样加速器（GPU、NPU、FPGA等）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>中间表示</strong></td>
+                        <td>固定层次的IR（如LLVM IR）</td>
+                        <td>多层次、可扩展的IR（如MLIR dialects）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>关键挑战</strong></td>
+                        <td>语言标准兼容、跨平台一致性</td>
+                        <td>硬件适配、自动性能调优、动态形状</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>传统编译器关注<strong>通用编程语言</strong>到<strong>通用硬件</strong>的静态映射，而AI编译器专注于<strong>计算图</strong>到<strong>异构硬件</strong>的高效、自适应映射。</p>
+        </section>
+
+        <section class="content-section">
+            <h2>🏆 主流框架对比</h2>
+            <div class="svg-container">
+                <svg class="architecture-svg" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="50" y="50" width="200" height="80" rx="10" fill="#4361ee" opacity="0.9"/>
+                    <text x="150" y="95" text-anchor="middle" fill="white" font-size="18" font-weight="bold">TVM</text>
+                    <text x="150" y="120" text-anchor="middle" fill="#e0e0ff" font-size="14">端到端自动优化</text>
+
+                    <rect x="300" y="50" width="200" height="80" rx="10" fill="#3a0ca3" opacity="0.9"/>
+                    <text x="400" y="95" text-anchor="middle" fill="white" font-size="18" font-weight="bold">XLA</text>
+                    <text x="400" y="120" text-anchor="middle" fill="#e0e0ff" font-size="14">TensorFlow专用</text>
+
+                    <rect x="550" y="50" width="200" height="80" rx="10" fill="#f72585" opacity="0.9"/>
+                    <text x="650" y="95" text-anchor="middle" fill="white" font-size="18" font-weight="bold">MLIR</text>
+                    <text x="650" y="120" text-anchor="middle" fill="#ffe0ee" font-size="14">统一基础设施</text>
+
+                    <line x1="150" y1="130" x2="150" y2="200" stroke="#4cc9f0" stroke-width="3"/>
+                    <line x1="400" y1="130" x2="400" y2="200" stroke="#4cc9f0" stroke-width="3"/>
+                    <line x1="650" y1="130" x2="650" y2="200" stroke="#4cc9f0" stroke-width="3"/>
+
+                    <rect x="30" y="200" width="740" height="150" rx="15" fill="#f8f9ff" stroke="#4361ee" stroke-width="2"/>
+                    <text x="400" y="230" text-anchor="middle" fill="#3a0ca3" font-size="20" font-weight="bold">硬件后端</text>
+                    <circle cx="150" cy="280" r="40" fill="#4cc9f0" opacity="0.8"/>
+                    <text x="150" y="285" text-anchor="middle" fill="white" font-size="16">CPU</text>
+                    <circle cx="300" cy="280" r="40" fill="#7209b7" opacity="0.8"/>
+                    <text x="300" y="285" text-anchor="middle" fill="white" font-size="16">GPU</text>
+                    <circle cx="450" cy="280" r="40" fill="#f72585" opacity="0.8"/>
+                    <text x="450" y="285" text-anchor="middle" fill="white" font-size="16">NPU</text>
+                    <circle cx="600" cy="280" r="40" fill="#4895ef" opacity="0.8"/>
+                    <text x="600" y="285" text-anchor="middle" fill="white" font-size="16">FPGA</text>
+                    <circle cx="750" cy="280" r="40" fill="#2ec4b6" opacity="0.8"/>
+                    <text x="750" y="285" text-anchor="middle" fill="white" font-size="16">ASIC</text>
+                </svg>
+            </div>
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>框架</th>
+                        <th>核心思想</th>
+                        <th>优势</th>
+                        <th>适用场景</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>TVM</strong></td>
+                        <td>基于Halide IR的自动调度与代码生成</td>
+                        <td>端到端优化、支持多种前端、自动调优能力强</td>
+                        <td>研究、边缘设备、多硬件部署</td>
+                    </tr>
+                    <tr>
+                        <td><strong>XLA</strong></td>
+                        <td>线性代数加速，与TensorFlow深度集成</td>
+                        <td>图优化成熟、与TF生态无缝衔接、静态优化效果好</td>
+                        <td>TensorFlow模型、云服务器、静态图</td>
+                    </tr>
+                    <tr>
+                        <td><strong>MLIR</strong></td>
+                        <td>多层次、可扩展的中间表示基础设施</td>
+                        <td>高度灵活、支持自定义Dialect、统一编译流程</td>
+                        <td>编译器开发、新型硬件、复杂优化管道</td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="highlight">
+                <p><strong>总结</strong>：TVM是<strong>自动优化</strong>的先驱，XLA是<strong>深度学习框架集成</strong>的代表，而MLIR是面向未来的<strong>编译器基础设施</strong>。三者并非完全替代，而是互补共存，MLIR有望成为统一的后端基础设施。</p>
+            </div>
+        </section>
+
+        <section class="content-section">
+            <h2>💡 关键要点</h2>
+            <ol>
+                <li>AI编译器是连接<strong>AI模型</strong>与<strong>异构硬件</strong>的关键桥梁，其发展由硬件多样性和模型复杂性驱动。</li>
+                <li>核心挑战在于<strong>硬件适配</strong>、<strong>自动优化</strong>和<strong>动态性处理</strong>，需要全新的编译技术。</li>
+                <li>与传统编译器相比，AI编译器更关注<strong>计算图优化</strong>和<strong>多层次IR</strong>，而非单纯的指令生成。</li>
+                <li>TVM、XLA、MLIR分别代表了<strong>自动调度</strong>、<strong>框架集成</strong>和<strong>基础设施</strong>三种技术路线。</li>
+                <li>未来趋势是<strong>MLIR</strong>作为统一中间层，结合<strong>自动搜索</strong>与<strong>硬件专用优化</strong>，实现全栈编译优化。</li>
+            </ol>
+        </section>
+
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

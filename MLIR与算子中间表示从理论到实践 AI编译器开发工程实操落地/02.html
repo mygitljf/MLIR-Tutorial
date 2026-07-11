@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR核心概念精讲 | 雁熙云著</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #FFFAF0;
+            --dark: #2D3047;
+            --text: #333344;
+            --card-bg: rgba(255, 255, 255, 0.92);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: var(--card-bg);
+            border-radius: 28px;
+            box-shadow: 0 20px 60px rgba(108, 99, 255, 0.25);
+            padding: 40px;
+            position: relative;
+            border: 2px solid var(--primary);
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 3px dashed var(--accent);
+        }
+        h1 {
+            color: var(--primary);
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .subtitle {
+            color: var(--secondary);
+            font-size: 1.4rem;
+            font-weight: 500;
+        }
+        .concept-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .concept-card {
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+            border-left: 8px solid var(--primary);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .concept-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 40px rgba(108, 99, 255, 0.2);
+        }
+        .concept-card h3 {
+            color: var(--dark);
+            font-size: 1.6rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .concept-card h3 svg {
+            width: 28px;
+            height: 28px;
+        }
+        .concept-card p {
+            line-height: 1.7;
+            margin-bottom: 15px;
+            font-size: 1.05rem;
+        }
+        .concept-card ul, .concept-card table {
+            margin-top: 10px;
+            font-size: 0.95rem;
+        }
+        .concept-card li {
+            margin-bottom: 8px;
+            padding-left: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid var(--accent);
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: rgba(54, 209, 220, 0.15);
+            color: var(--dark);
+        }
+        .architecture {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin: 40px 0;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+        }
+        .architecture h2 {
+            color: var(--primary);
+            margin-bottom: 25px;
+        }
+        .architecture svg {
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 25px;
+            border-top: 2px solid var(--secondary);
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .highlight {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+        .keyword {
+            background-color: rgba(108, 99, 255, 0.1);
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-family: monospace;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>MLIR核心概念精讲</h1>
+            <div class="subtitle">方言、操作、区域、块、值与类型系统 — 构建AI编译器的基石</div>
+        </div>
+
+        <div class="concept-grid">
+            <div class="concept-card">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                    </svg>
+                    方言 (Dialect)
+                </h3>
+                <p><span class="highlight">方言</span>是MLIR中用于<strong>组织操作和类型</strong>的命名空间和抽象集合。每个方言代表一个特定领域（如线性代数、GPU、硬件特定）的语义单元。</p>
+                <ul>
+                    <li><strong>模块化设计</strong>：允许不同领域专家定义自己的操作与类型。</li>
+                    <li><strong>可扩展性</strong>：可自定义方言，适应新硬件或算法。</li>
+                    <li><strong>互操作性</strong>：不同方言的操作可在同一模块中共存与转换。</li>
+                </ul>
+                <p>示例：<span class="keyword">linalg</span>（线性代数）、<span class="keyword">gpu</span>、<span class="keyword">affine</span>（仿射循环）。</p>
+            </div>
+
+            <div class="concept-card">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+                    </svg>
+                    操作 (Operation)
+                </h3>
+                <p><span class="highlight">操作</span>是MLIR程序中的<strong>基本执行单元</strong>，类似于传统编译器中的指令。每个操作属于一个方言，并具有唯一的名称。</p>
+                <table>
+                    <tr><th>组成部分</th><th>说明</th></tr>
+                    <tr><td>操作名</td><td>如 <span class="keyword">arith.addi</span></td></tr>
+                    <tr><td>操作数</td><td>输入值列表</td></tr>
+                    <tr><td>结果</td><td>输出值列表</td></tr>
+                    <tr><td>属性</td><td>编译时常量参数</td></tr>
+                    <tr><td>区域</td><td>嵌套结构（可选）</td></tr>
+                </table>
+            </div>
+
+            <div class="concept-card">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/>
+                    </svg>
+                    区域 (Region) 与块 (Block)
+                </h3>
+                <p><span class="highlight">区域</span>是由<strong>块组成的列表</strong>，用于表示嵌套结构（如循环体、函数体）。</p>
+                <p><span class="highlight">块</span>是<strong>操作序列</strong>的容器，具有参数列表和唯一入口，操作在块内按顺序执行。</p>
+                <ul>
+                    <li>区域 = 块的集合</li>
+                    <li>块 = 操作的线性序列 + 块参数</li>
+                    <li>控制流通过块之间的跳转实现</li>
+                    <li>支持SSA（静态单赋值）形式</li>
+                </ul>
+            </div>
+
+            <div class="concept-card">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/>
+                    </svg>
+                    值 (Value) 与类型系统
+                </h3>
+                <p><span class="highlight">值</span>是MLIR中<strong>数据流的抽象</strong>，代表操作产生或消费的数据。每个值都有具体的类型。</p>
+                <p><span class="highlight">类型系统</span>是MLIR的<strong>强类型核心</strong>，支持从低级硬件类型到高级张量类型的统一描述。</p>
+                <ul>
+                    <li><strong>值</strong>：SSA值，不可变，可被多个操作使用。</li>
+                    <li><strong>类型</strong>：如 <span class="keyword">f32</span>、<span class="keyword">tensor&lt;4x4xf32&gt;</span>、<span class="keyword">index</span>。</li>
+                    <li><strong>类型统一</strong>：允许自定义类型，并贯穿整个编译流程。</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="architecture">
+            <h2>MLIR核心概念关系图</h2>
+            <svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#6C63FF" />
+                        <stop offset="100%" stop-color="#36D1DC" />
+                    </linearGradient>
+                    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#FF6584" />
+                        <stop offset="100%" stop-color="#FFB347" />
+                    </linearGradient>
+                </defs>
+                <rect x="50" y="50" width="700" height="200" rx="15" fill="url(#grad1)" opacity="0.1" stroke="#6C63FF" stroke-width="2"/>
+                <rect x="100" y="100" width="150" height="80" rx="10" fill="white" stroke="#6C63FF" stroke-width="2"/>
+                <text x="175" y="140" text-anchor="middle" fill="#2D3047" font-size="16" font-weight="bold">方言</text>
+                <text x="175" y="160" text-anchor="middle" fill="#6C63FF" font-size="14">Dialect</text>
+
+                <rect x="300" y="100" width="150" height="80" rx="10" fill="white" stroke="#FF6584" stroke-width="2"/>
+                <text x="375" y="140" text-anchor="middle" fill="#2D3047" font-size="16" font-weight="bold">操作</text>
+                <text x="375" y="160" text-anchor="middle" fill="#FF6584" font-size="14">Operation</text>
+
+                <rect x="500" y="100" width="150" height="80" rx="10" fill="white" stroke="#36D1DC" stroke-width="2"/>
+                <text x="575" y="140" text-anchor="middle" fill="#2D3047" font-size="16" font-weight="bold">区域与块</text>
+                <text x="575" y="160" text-anchor="middle" fill="#36D1DC" font-size="14">Region & Block</text>
+
+                <rect x="200" y="200" width="150" height="80" rx="10" fill="white" stroke="#FFB347" stroke-width="2"/>
+                <text x="275" y="240" text-anchor="middle" fill="#2D3047" font-size="16" font-weight="bold">值</text>
+                <text x="275" y="260" text-anchor="middle" fill="#FFB347" font-size="14">Value</text>
+
+                <rect x="400" y="200" width="150" height="80" rx="10" fill="white" stroke="#9C89B8" stroke-width="2"/>
+                <text x="475" y="240" text-anchor="middle" fill="#2D3047" font-size="16" font-weight="bold">类型系统</text>
+                <text x="475" y="260" text-anchor="middle" fill="#9C89B8" font-size="14">Type System</text>
+
+                <path d="M250 180 L275 200" stroke="#2D3047" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                <path d="M450 180 L475 200" stroke="#2D3047" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                <path d="M350 180 L325 200" stroke="#2D3047" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                <path d="M550 180 L525 200" stroke="#2D3047" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                <path d="M100 140 L80 140 L80 240 L200 240" stroke="#2D3047" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
+                <defs>
+                    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                        <path d="M0,0 L0,6 L9,3 z" fill="#2D3047"/>
+                    </marker>
+                </defs>
+            </svg>
+            <p style="margin-top: 20px; color: var(--dark);">方言包含操作，操作构成块，块组成区域，值在操作间流动，类型系统为所有元素提供静态保证。</p>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

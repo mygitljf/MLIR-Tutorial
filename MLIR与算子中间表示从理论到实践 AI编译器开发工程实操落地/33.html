@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>异构计算与MLIR：CPU/GPU/Accelerator协同编译</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --border-radius: 16px;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            --gradient: linear-gradient(135deg, var(--primary), var(--accent));
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            padding: 40px;
+            position: relative;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .title {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 15px;
+            letter-spacing: -0.5px;
+        }
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--secondary);
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        .divider {
+            height: 4px;
+            width: 100px;
+            background: var(--gradient);
+            margin: 0 auto 30px;
+            border-radius: 2px;
+        }
+        .section {
+            margin-bottom: 40px;
+            padding: 25px;
+            background: var(--light);
+            border-radius: var(--border-radius);
+            border-left: 6px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section-title {
+            font-size: 1.8rem;
+            color: var(--dark);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+        .section-title svg {
+            margin-right: 12px;
+            width: 28px;
+            height: 28px;
+        }
+        .content {
+            font-size: 1.05rem;
+            line-height: 1.7;
+            color: #444;
+        }
+        .highlight {
+            background: linear-gradient(120deg, rgba(108, 99, 255, 0.15) 0%, rgba(54, 209, 220, 0.15) 100%);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin: 15px 0;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5eb;
+        }
+        th {
+            background: var(--gradient);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8fafc;
+        }
+        .architecture {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 25px;
+            border-top: 2px dashed var(--accent);
+            color: var(--dark);
+            font-size: 1.1rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+        .badge {
+            display: inline-block;
+            background: var(--secondary);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .key-point {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+            border: 2px solid var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">异构计算与MLIR</h1>
+            <p class="subtitle">CPU/GPU/Accelerator协同编译、统一中间表示下的分派</p>
+            <div class="divider"></div>
+            <p class="content" style="text-align: center; max-width: 800px; margin: 0 auto;">
+                本章深入探讨如何利用MLIR（多级中间表示）构建统一的编译基础设施，实现CPU、GPU及各类加速器的高效协同编译与运行时调度。
+            </p>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                核心挑战：异构计算的编译困境
+            </h2>
+            <div class="content">
+                <p>在AI与高性能计算领域，系统通常包含多种计算设备（CPU、GPU、NPU、FPGA等）。传统编译方式面临巨大挑战：</p>
+                <ul>
+                    <li><span class="highlight">编程模型碎片化</span>：CUDA、OpenCL、SYCL、ROCm等各自为政，代码难以移植。</li>
+                    <li><span class="highlight">编译工具链孤立</span>：不同后端需要独立的编译器，优化无法跨设备传递。</li>
+                    <li><span class="highlight">手动调优与分派</span>：开发者需手动划分计算任务并管理数据迁移，效率低下且易错。</li>
+                    <li><span class="highlight">性能可移植性差</span>：为一种设备优化的代码在另一种设备上性能往往大幅下降。</li>
+                </ul>
+                <div class="key-point">
+                    <strong>MLIR的解决思路：</strong> 通过可扩展、多层次的统一中间表示，将不同前端、不同硬件后端的编译流程连接起来，实现“一次编写，多处高效运行”。
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                </svg>
+                MLIR统一中间表示分层架构
+            </h2>
+            <div class="content">
+                <p>MLIR通过定义不同抽象层次的<strong>方言（Dialect）</strong>，构建了从高级算法到底层机器指令的完整表示栈。</p>
+                <div class="architecture">
+                    <svg width="700" height="320" viewBox="0 0 700 320">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#6C63FF"/>
+                                <stop offset="100%" stop-color="#36D1DC"/>
+                            </linearGradient>
+                        </defs>
+                        <!-- 层次结构 -->
+                        <rect x="50" y="40" width="600" height="50" rx="10" fill="url(#grad1)" opacity="0.9"/>
+                        <text x="350" y="72" text-anchor="middle" fill="white" font-size="18" font-weight="bold">高层计算图 (Linalg, Tensor, Affine)</text>
+                        <rect x="80" y="110" width="540" height="50" rx="10" fill="url(#grad1)" opacity="0.8"/>
+                        <text x="350" y="142" text-anchor="middle" fill="white" font-size="18" font-weight="bold">中间表示与优化 (SCF, Vector, GPU)</text>
+                        <rect x="110" y="180" width="480" height="50" rx="10" fill="url(#grad1)" opacity="0.7"/>
+                        <text x="350" y="212" text-anchor="middle" fill="white" font-size="18" font-weight="bold">底层硬件抽象 (LLVM, SPIR-V, ROCDL)</text>
+                        <rect x="140" y="250" width="420" height="50" rx="10" fill="url(#grad1)" opacity="0.6"/>
+                        <text x="350" y="282" text-anchor="middle" fill="white" font-size="18" font-weight="bold">目标代码生成 (CPU/GPU/Accelerator Binary)</text>
+                        <!-- 连接线 -->
+                        <polyline points="350,90 350,110" stroke="#FF6584" stroke-width="3" fill="none"/>
+                        <polyline points="350,160 350,180" stroke="#FF6584" stroke-width="3" fill="none"/>
+                        <polyline points="350,230 350,250" stroke="#FF6584" stroke-width="3" fill="none"/>
+                        <text x="650" y="160" fill="#2D3047" font-size="16" font-weight="bold">渐进式 lowering</text>
+                        <polyline points="600,150 620,150 620,170 640,170" stroke="#2D3047" stroke-width="2" fill="none" stroke-dasharray="5,5"/>
+                    </svg>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>方言层次</th>
+                            <th>代表方言</th>
+                            <th>主要职责</th>
+                            <th>目标设备</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>计算图级</strong></td>
+                            <td>Linalg, Tensor, TOSA</td>
+                            <td>表达高级线性代数与张量运算，设备无关优化</td>
+                            <td>All</td>
+                        </tr>
+                        <tr>
+                            <td><strong>控制流与并行</strong></td>
+                            <td>SCF, Async, GPU</td>
+                            <td>结构化控制流、异步操作、GPU内核启动</td>
+                            <td>CPU, GPU</td>
+                        </tr>
+                        <tr>
+                            <td><strong>向量与循环</strong></td>
+                            <td>Vector, Affine</td>
+                            <td>循环变换、向量化、内存提升</td>
+                            <td>CPU, GPU, Accelerator</td>
+                        </tr>
+                        <tr>
+                            <td><strong>硬件后端</strong></td>
+                            <td>LLVM, SPIR-V, ROCDL, NVVM</td>
+                            <td>对接具体硬件指令集与运行时</td>
+                            <td>特定设备</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/>
+                </svg>
+                协同编译与运行时分派流程
+            </h2>
+            <div class="content">
+                <p>基于MLIR的统一编译流程，可以实现智能的任务划分、代码生成与运行时调度。</p>
+                <ol>
+                    <li><strong>统一前端 lowering</strong>：将不同前端（PyTorch, TensorFlow, JAX）的模型转换为MLIR通用计算图表示。</li>
+                    <li><strong>设备无关优化</strong>：在高层方言上进行融合、常量折叠、公共子表达式消除等跨设备优化。</li>
+                    <li><strong>目标感知分派决策</strong>：基于成本模型（Cost Model）和硬件特性，自动或半自动地将计算子图分派给最适合的设备（CPU/GPU/Accelerator）。</li>
+                    <li><strong>并行代码生成</strong>：针对不同目标，lowering到对应的方言（如GPU方言、Vector方言），并进行设备特定优化。</li>
+                    <li><strong>统一运行时接口</strong>：生成协调主机与设备间执行、数据迁移和同步的运行时代码。</li>
+                </ol>
+                <div class="key-point">
+                    <strong>分派策略示例：</strong>
+                    <br>
+                    <span class="badge">CPU</span> 适合控制密集型、串行任务和小规模数据。
+                    <span class="badge">GPU</span> 适合数据并行、计算密集的大规模张量运算。
+                    <span class="badge">Accelerator</span> 适合特定算子（如矩阵乘、卷积）的极致加速。
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+                </svg>
+                工程实践与优势总结
+            </h2>
+            <div class="content">
+                <p>采用MLIR构建异构编译栈为AI编译器工程带来显著优势：</p>
+                <ul>
+                    <li><strong>开发效率提升</strong>：共享优化管道，减少为每个新硬件重写编译器的成本。</li>
+                    <li><strong>性能优化可复用</strong>：在高层进行的优化（如算子融合）可以自动传递到所有后端。</li>
+                    <li><strong>硬件快速集成</strong>：通过定义新的方言或扩展现有方言，可以相对容易地集成新型加速器。</li>
+                    <li><strong>调试与可视化</strong>：MLIR文本格式可读性强，便于开发者理解编译过程和各层中间表示。</li>
+                    <li><strong>生态系统融合</strong>：作为LLVM生态系统的一部分，天然兼容现有工具链。</li>
+                </ul>
+                <p style="margin-top: 20px; font-style: italic; color: var(--primary);">
+                    通过MLIR，我们不再为每种硬件编写孤立的编译器，而是构建一个可扩展、可组合的编译基础设施，让计算任务在异构硬件间高效、自动地流动。
+                </p>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

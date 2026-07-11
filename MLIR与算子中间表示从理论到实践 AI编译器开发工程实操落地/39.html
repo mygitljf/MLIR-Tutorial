@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>工程实践：构建简易深度学习算子编译器</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --shadow: rgba(108, 99, 255, 0.2);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px var(--shadow);
+            overflow: hidden;
+            border: 8px solid white;
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 40px;
+            background: var(--secondary);
+            border-radius: 20px;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .section {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            border-left: 6px solid var(--secondary);
+            padding-left: 15px;
+        }
+        .section ul, .section ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+            line-height: 1.8;
+        }
+        .section li {
+            margin-bottom: 10px;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 25px 0;
+            border-left: 5px solid var(--accent);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .architecture {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(45deg, #fdfcfb, #f5f7fa);
+            border-radius: 20px;
+        }
+        .architecture svg {
+            max-width: 100%;
+            height: auto;
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+        }
+        .code-block {
+            background: #2D3047;
+            color: #a8edea;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            margin: 20px 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+        }
+        .step-number {
+            background: var(--secondary);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+                padding: 30px;
+            }
+            .header h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>工程实践：构建简易深度学习算子编译器</h1>
+            <p>从算子定义到CPU代码生成 —— 基于MLIR的完整编译流水线实现</p>
+            <div class="decoration"></div>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2>🎯 核心目标</h2>
+                <ul>
+                    <li>理解深度学习算子编译器的基本架构与工作流程</li>
+                    <li>掌握使用MLIR定义算子中间表示(IR)的方法</li>
+                    <li>实现从高级算子描述到低级CPU代码的完整转换</li>
+                    <li>构建一个可扩展的编译框架原型</li>
+                    <li>通过实践深入理解编译优化技术</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>📊 关键技术组件</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>组件</th>
+                            <th>功能</th>
+                            <th>实现技术</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>前端解析器</td>
+                            <td>解析算子定义</td>
+                            <td>MLIR方言、自定义属性</td>
+                        </tr>
+                        <tr>
+                            <td>中间表示</td>
+                            <td>多级IR表示</td>
+                            <td>MLIR Dialect、Region、Block</td>
+                        </tr>
+                        <tr>
+                            <td>优化器</td>
+                            <td>IR转换与优化</td>
+                            <td>Pattern Rewriting、Pass管理</td>
+                        </tr>
+                        <tr>
+                            <td>代码生成器</td>
+                            <td>生成CPU代码</td>
+                            <td>LLVM IR后端、目标代码生成</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="architecture">
+                <h2>🏗️ 系统架构图</h2>
+                <svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg">
+                    <!-- 定义渐变 -->
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#6C63FF" />
+                            <stop offset="100%" stop-color="#36D1DC" />
+                        </linearGradient>
+                        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#FF6584" />
+                            <stop offset="100%" stop-color="#FFB347" />
+                        </linearGradient>
+                    </defs>
+                    
+                    <!-- 数据流箭头 -->
+                    <path d="M100,200 L200,200" stroke="#6C63FF" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M300,200 L400,200" stroke="#6C63FF" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M500,200 L600,200" stroke="#6C63FF" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                    <path d="M700,200 L800,200" stroke="#6C63FF" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+                    
+                    <!-- 处理模块 -->
+                    <rect x="50" y="150" width="100" height="100" rx="15" fill="url(#grad1)" stroke="#2D3047" stroke-width="2"/>
+                    <text x="100" y="200" text-anchor="middle" fill="white" font-size="16" font-weight="bold">算子定义</text>
+                    <text x="100" y="225" text-anchor="middle" fill="white" font-size="12">前端</text>
+                    
+                    <rect x="250" y="150" width="100" height="100" rx="15" fill="url(#grad1)" stroke="#2D3047" stroke-width="2"/>
+                    <text x="300" y="200" text-anchor="middle" fill="white" font-size="16" font-weight="bold">MLIR IR</text>
+                    <text x="300" y="225" text-anchor="middle" fill="white" font-size="12">中间表示</text>
+                    
+                    <rect x="450" y="150" width="100" height="100" rx="15" fill="url(#grad2)" stroke="#2D3047" stroke-width="2"/>
+                    <text x="500" y="200" text-anchor="middle" fill="white" font-size="16" font-weight="bold">优化器</text>
+                    <text x="500" y="225" text-anchor="middle" fill="white" font-size="12">转换与优化</text>
+                    
+                    <rect x="650" y="150" width="100" height="100" rx="15" fill="url(#grad1)" stroke="#2D3047" stroke-width="2"/>
+                    <text x="700" y="200" text-anchor="middle" fill="white" font-size="16" font-weight="bold">CPU代码</text>
+                    <text x="700" y="225" text-anchor="middle" fill="white" font-size="12">后端生成</text>
+                    
+                    <!-- 箭头定义 -->
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#6C63FF"/>
+                        </marker>
+                    </defs>
+                </svg>
+            </div>
+
+            <div class="section">
+                <h2>🔧 实现步骤详解</h2>
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <div>
+                        <h3>定义算子方言(Dialect)</h3>
+                        <p>创建自定义MLIR方言，包含深度学习常用算子：Conv2D、MatMul、ReLU等。定义算子的属性、类型和操作接口。</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <div>
+                        <h3>构建前端解析器</h3>
+                        <p>实现从高级描述（如ONNX或自定义DSL）到MLIR算子的转换器，处理形状推断和类型检查。</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <div>
+                        <h3>设计多级IR转换</h3>
+                        <p>实现从高层算子IR到低层循环、向量化IR的渐进式降低(Progressive Lowering)。</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">4</div>
+                    <div>
+                        <h3>实现优化Pass</h3>
+                        <p>开发模式重写(Pattern Rewrite)优化：融合算子、常量折叠、循环优化、内存布局转换等。</p>
+                    </div>
+                </div>
+                <div class="step">
+                    <div class="step-number">5</div>
+                    <div>
+                        <h3>集成LLVM后端</h3>
+                        <p>将优化后的低级IR转换为LLVM IR，利用LLVM工具链生成高效的CPU机器码。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>💡 核心优化技术</h2>
+                <div class="highlight">
+                    <ul>
+                        <li><strong>算子融合</strong>：将多个算子合并，减少内存访问和中间结果存储</li>
+                        <li><strong>循环优化</strong>：循环展开、分块、向量化提升数据局部性</li>
+                        <li><strong>内存优化</strong>：数据布局转换、内存池分配减少缓存缺失</li>
+                        <li><strong>并行化</strong>：自动检测并行性，生成多线程代码</li>
+                        <li><strong>指令选择</strong>：针对CPU架构选择最优指令集</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>📝 示例代码片段</h2>
+                <div class="code-block">
+// 定义Conv2D算子方言
+def MyOps_Dialect : Dialect {
+  let name = "myops";
+  let cppNamespace = "::myops";
+  let ops = [
+    Conv2DOp,
+    MatMulOp,
+    ReluOp
+  ];
+}
+
+// Conv2D操作定义
+def Conv2DOp : MyOps_Op<"conv2d"> {
+  let arguments = (ins
+    F32Tensor:$input,
+    F32Tensor:$filter,
+    I64Attr:$stride,
+    I64Attr:$padding
+  );
+  let results = (outs F32Tensor);
+  let verifier = [{ return verifyConv2DOp(*this); }];
+}
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🚀 实践价值</h2>
+                <ol>
+                    <li>深入理解现代AI编译器的内部工作机制</li>
+                    <li>掌握MLIR这一工业级编译框架的实际应用</li>
+                    <li>为自定义硬件加速器开发奠定基础</li>
+                    <li>提升高性能计算和系统编程能力</li>
+                    <li>构建可复用的编译器开发经验</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

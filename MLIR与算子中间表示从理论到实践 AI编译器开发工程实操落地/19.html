@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：形状推导与动态形状支持</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --accent: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --warning: #ff9e00;
+            --card-bg: #ffffff;
+            --shadow: rgba(67, 97, 238, 0.15);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7ff 0%, #e3e9ff 100%);
+            color: var(--dark);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+        header {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        header .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 20px;
+        }
+        .content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .section {
+            background: var(--light);
+            border-radius: 18px;
+            padding: 30px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid var(--success);
+            display: inline-block;
+        }
+        .section h3 {
+            color: var(--secondary);
+            margin: 15px 0 10px;
+            font-size: 1.3rem;
+        }
+        .section p, .section li {
+            line-height: 1.7;
+            margin-bottom: 10px;
+            color: #444;
+        }
+        ul, ol {
+            padding-left: 24px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+        .highlight {
+            background-color: #fffacd;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+            color: #b35a00;
+        }
+        .code {
+            font-family: 'Courier New', monospace;
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow-x: auto;
+            font-size: 0.95rem;
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 25px 0;
+        }
+        .architecture {
+            background: #f0f4ff;
+            border-radius: 16px;
+            padding: 25px;
+            grid-column: 1 / -1;
+        }
+        footer {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(90deg, var(--secondary), #2a0a7a);
+            color: white;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            font-weight: 300;
+        }
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+                padding: 25px;
+            }
+            header h1 {
+                font-size: 2.2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>形状推导与动态形状支持</h1>
+            <div class="subtitle">深入理解MLIR中的RankedTensorType、形状计算操作与动态维度处理策略，为AI编译器构建灵活高效的类型系统。</div>
+            <div class="decoration"></div>
+        </header>
+
+        <div class="content">
+            <div class="section">
+                <h2>RankedTensorType：静态与动态形状的载体</h2>
+                <p>在MLIR中，<span class="highlight">RankedTensorType</span>是表示多维张量的核心类型，它封装了张量的元素类型、维度和各维度的大小信息。它是连接静态编译与动态运行的关键桥梁。</p>
+                <h3>核心特性</h3>
+                <ul>
+                    <li><strong>元素类型</strong>：如f32、i64等，定义张量中每个单元的数据类型。</li>
+                    <li><strong>秩（Rank）</strong>：张量的维度数量，在编译时已知。</li>
+                    <li><strong>形状（Shape）</strong>：一个包含各维度大小的列表，每个维度大小可以是：
+                        <ul>
+                            <li><strong>静态维度</strong>：编译时已知的常量整数（如128）。</li>
+                            <li><strong>动态维度</strong>：使用<code>?</code>或<code>-1</code>表示，在运行时才能确定。</li>
+                        </ul>
+                    </li>
+                </ul>
+                <div class="svg-container">
+                    <svg width="400" height="180" viewBox="0 0 400 180">
+                        <rect x="10" y="10" width="380" height="160" rx="10" fill="#e3f2fd" stroke="#4361ee" stroke-width="2"/>
+                        <text x="200" y="40" text-anchor="middle" font-size="18" fill="#3a0ca3" font-weight="bold">RankedTensorType</text>
+                        <rect x="40" y="60" width="120" height="40" rx="5" fill="#4cc9f0" stroke="#2a9d8f" stroke-width="1"/>
+                        <text x="100" y="85" text-anchor="middle" fill="white" font-size="14">元素类型</text>
+                        <rect x="180" y="60" width="120" height="40" rx="5" fill="#f72585" stroke="#b5179e" stroke-width="1"/>
+                        <text x="240" y="85" text-anchor="middle" fill="white" font-size="14">秩 (Rank)</text>
+                        <rect x="40" y="120" width="320" height="40" rx="5" fill="#ff9e00" stroke="#e76f51" stroke-width="1"/>
+                        <text x="200" y="145" text-anchor="middle" fill="white" font-size="14">形状 [静态维度 | 动态维度?]</text>
+                        <line x1="100" y1="100" x2="100" y2="120" stroke="#4361ee" stroke-width="2" stroke-dasharray="5,5"/>
+                        <line x1="240" y1="100" x2="240" y2="120" stroke="#4361ee" stroke-width="2" stroke-dasharray="5,5"/>
+                    </svg>
+                </div>
+                <p>这种设计允许在同一个类型系统中统一处理静态形状和动态形状，为后续的优化和代码生成提供了统一的基础。</p>
+            </div>
+
+            <div class="section">
+                <h2>形状计算操作</h2>
+                <p>MLIR提供了一组专门用于在编译时和运行时进行形状计算的操作（Shape Ops）。这些操作是构建动态形状推理和管理的基石。</p>
+                <h3>关键操作类别</h3>
+                <table>
+                    <thead>
+                        <tr><th>操作类别</th><th>代表操作</th><th>功能描述</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>形状查询</td><td><code>tensor.dim</code>, <code>shape.shape_of</code></td><td>获取张量的维度大小或整个形状。</td></tr>
+                        <tr><td>形状构造</td><td><code>shape.const_shape</code>, <code>shape.from_elements</code></td><td>创建表示形状的值。</td></tr>
+                        <tr><td>形状推导</td><td><code>shape.broadcast</code>, <code>shape.reduce</code></td><td>基于输入形状计算输出形状（如广播）。</td></tr>
+                        <tr><td>动态断言</td><td><code>shape.assuming</code>, <code>shape.assuming_yield</code></td><td>对动态形状条件进行假设和约束。</td></tr>
+                        <tr><td>类型转换</td><td><code>tensor.cast</code>（带动态维度）</td><td>在静态和动态类型间进行安全转换。</td></tr>
+                    </tbody>
+                </table>
+                <h3>示例：动态广播</h3>
+                <div class="code">
+// 假设有两个动态张量
+%shape1 = shape.shape_of %tensor1 : tensor&lt;?x?xf32&gt; -> !shape.shape
+%shape2 = shape.shape_of %tensor2 : tensor&lt;?x?xf32&gt; -> !shape.shape
+%broadcast_shape = shape.broadcast %shape1, %shape2 : !shape.shape, !shape.shape -> !shape.shape
+// %broadcast_shape 包含了广播后的动态形状信息
+                </div>
+                <p>通过这些操作，编译器可以在IR层面显式地表达和操作形状计算，使得依赖形状的优化（如融合、布局选择）即使在动态场景下也能进行。</p>
+            </div>
+
+            <div class="section architecture">
+                <h2>动态维度处理策略</h2>
+                <p>在AI编译器中，处理动态维度需要一套从高层IR到低层代码生成的连贯策略。以下是核心的处理流程与策略：</p>
+                <div class="svg-container">
+                    <svg width="700" height="300" viewBox="0 0 700 300">
+                        <rect x="50" y="40" width="600" height="220" rx="10" fill="none" stroke="#3a0ca3" stroke-width="2"/>
+                        <rect x="80" y="70" width="150" height="50" rx="8" fill="#4361ee"/>
+                        <text x="155" y="100" text-anchor="middle" fill="white" font-size="14" font-weight="bold">1. 形状推导与传播</text>
+                        <rect x="280" y="70" width="150" height="50" rx="8" fill="#f72585"/>
+                        <text x="355" y="100" text-anchor="middle" fill="white" font-size="14" font-weight="bold">2. 运行时形状管理</text>
+                        <rect x="480" y="70" width="150" height="50" rx="8" fill="#ff9e00"/>
+                        <text x="555" y="100" text-anchor="middle" fill="white" font-size="14" font-weight="bold">3. 专用内核生成</text>
+                        <rect x="80" y="150" width="150" height="50" rx="8" fill="#4cc9f0"/>
+                        <text x="155" y="180" text-anchor="middle" fill="white" font-size="14" font-weight="bold">4. 内存分配优化</text>
+                        <rect x="280" y="150" width="150" height="50" rx="8" fill="#7209b7"/>
+                        <text x="355" y="180" text-anchor="middle" fill="white" font-size="14" font-weight="bold">5. 条件优化与特化</text>
+                        <rect x="480" y="150" width="150" height="50" rx="8" fill="#2a9d8f"/>
+                        <text x="555" y="180" text-anchor="middle" fill="white" font-size="14" font-weight="bold">6. 统一静态/动态路径</text>
+                        <path d="M155 120 L155 150" stroke="#333" stroke-width="2" fill="none"/>
+                        <path d="M355 120 L355 150" stroke="#333" stroke-width="2" fill="none"/>
+                        <path d="M555 120 L555 150" stroke="#333" stroke-width="2" fill="none"/>
+                        <path d="M230 100 L280 100" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <path d="M430 100 L480 100" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <path d="M230 180 L280 180" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <path d="M430 180 L480 180" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#333"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+                <ol>
+                    <li><strong>形状推导与传播</strong>：在编译时尽可能推导动态维度的约束关系，并通过形状操作传播这些信息。</li>
+                    <li><strong>运行时形状管理</strong>：将无法静态确定的维度参数化为运行时值，并传递到内核中。</li>
+                    <li><strong>专用内核生成</strong>：为动态形状生成参数化的内核代码，或利用运行时调度选择合适的内核变体。</li>
+                    <li><strong>内存分配优化</strong>：使用动态内存分配或预分配策略，避免因形状变化导致的重分配开销。</li>
+                    <li><strong>条件优化与特化</strong>：利用<code>shape.assuming</code>等操作，在已知动态形状子集时进行条件优化。</li>
+                    <li><strong>统一静态/动态路径</strong>：在IR中保持统一的表示，允许共享优化管道，并在 lowering 后期才决定具体实现。</li>
+                </ol>
+            </div>
+
+            <div class="section">
+                <h2>工程实践要点</h2>
+                <p>在实际的AI编译器工程中，实现稳健的动态形状支持需要注意以下关键点：</p>
+                <ul>
+                    <li><strong>类型系统的一致性</strong>：确保从前端框架导入到后端代码生成，类型信息（尤其是动态维度）不丢失。</li>
+                    <li><strong>形状函数的纯函数性</strong>：形状计算操作应设计为无副作用的纯函数，便于分析和优化。</li>
+                    <li><strong>Lowering策略</strong>：制定清晰的 lowering 路径，决定在哪个编译阶段将动态形状操作转换为具体的运行时调用或静态代码。</li>
+                    <li><strong>测试与验证</strong>：构建全面的测试用例，覆盖从完全静态到完全动态的各种形状组合，确保推导正确性。</li>
+                    <li><strong>性能权衡</strong>：评估动态支持带来的运行时开销，并通过缓存、内核融合等技术进行补偿。</li>
+                </ul>
+                <p>通过MLIR强大的可扩展类型系统和操作定义能力，编译器开发者可以构建出既能处理复杂动态模型，又不失静态优化机会的现代化AI编译栈。</p>
+            </div>
+        </div>
+
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

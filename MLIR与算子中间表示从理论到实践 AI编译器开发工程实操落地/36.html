@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR中间表示的序列化与持久化</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #FFFAE6;
+            --dark: #2D3047;
+            --text: #333344;
+            --background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: var(--background);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(108, 99, 255, 0.2);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        h1 {
+            color: var(--primary);
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .subtitle {
+            color: var(--secondary);
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 30px;
+        }
+        .decoration {
+            position: absolute;
+            top: -20px;
+            right: -20px;
+            width: 200px;
+            height: 200px;
+            background: var(--accent);
+            border-radius: 50%;
+            opacity: 0.1;
+            z-index: 0;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border-left: 8px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card h2 svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--secondary);
+        }
+        .card ul, .card ol {
+            padding-left: 20px;
+            margin: 15px 0;
+            line-height: 1.7;
+        }
+        .card li {
+            margin-bottom: 8px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .architecture {
+            grid-column: 1 / -1;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 20px;
+            border: 3px dashed var(--accent);
+        }
+        .architecture h2 {
+            text-align: center;
+            color: var(--dark);
+            margin-bottom: 30px;
+        }
+        .footer {
+            text-align: center;
+            padding-top: 30px;
+            border-top: 2px solid var(--light);
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .highlight {
+            color: var(--secondary);
+            font-weight: bold;
+        }
+        .note {
+            background: #E3F2FD;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 20px 0;
+            border-left: 5px solid var(--accent);
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 25px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="decoration"></div>
+        <div class="header">
+            <h1>编译器中间表示的序列化与持久化</h1>
+            <div class="subtitle">Bytecode格式、版本兼容性、跨平台部署</div>
+            <p style="color: var(--dark); font-size: 1.2rem; max-width: 800px; margin: 0 auto;">深入探讨MLIR中间表示的持久化机制，实现高效、稳定、可移植的编译器工程实践。</p>
+        </div>
+
+        <div class="content">
+            <div class="card">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 2v6h6"/></svg>
+                    Bytecode格式设计
+                </h2>
+                <p>MLIR Bytecode是一种紧凑、高效的二进制序列化格式，旨在持久化保存MLIR模块及其多层次IR结构。</p>
+                <ul>
+                    <li><span class="highlight">自描述编码</span>：包含类型、操作、属性等完整IR信息。</li>
+                    <li><span class="highlight">可压缩存储</span>：支持可选压缩算法，减少存储与传输开销。</li>
+                    <li><span class="highlight">流式读写</span>：支持增量加载与处理大型IR文件。</li>
+                    <li><span class="highlight">可读性支持</span>：可转换为文本格式，便于调试与审计。</li>
+                </ul>
+                <div class="note">
+                    <strong>工程提示：</strong> Bytecode设计需平衡读取速度与文件大小，通常采用基于字典的编码压缩重复字符串与属性。
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+                    版本兼容性策略
+                </h2>
+                <p>确保不同版本编译器能够正确读写Bytecode，是长期维护与协作的基础。</p>
+                <ol>
+                    <li><strong>版本标识</strong>：文件头包含版本号与特征标志。</li>
+                    <li><strong>向后兼容</strong>：新版本编译器可读取旧版本生成的Bytecode。</li>
+                    <li><strong>向前兼容</strong>：通过忽略未知字段或提供降级路径处理新版本文件。</li>
+                    <li><strong>扩展机制</strong>：预留扩展字段，支持未来特性添加。</li>
+                </ol>
+                <table>
+                    <tr><th>兼容类型</th><th>实现机制</th><th>工程影响</th></tr>
+                    <tr><td>向后兼容</td><td>版本检测 + 旧版解析器</td><td>确保历史模型可编译</td></tr>
+                    <tr><td>向前兼容</td><td>跳过未知字段 + 默认值</td><td>避免版本锁死</td></tr>
+                    <tr><td>并行兼容</td><td>特性标志 + 条件解析</td><td>支持实验性特性</td></tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 12H9v-2h2v2zm0-4H9V9h2v2zm4 4h-2v-2h2v2zm0-4h-2V9h2v2z"/></svg>
+                    跨平台部署考量
+                </h2>
+                <p>Bytecode需在不同操作系统、硬件架构与编译器版本间可靠地工作。</p>
+                <ul>
+                    <li><span class="highlight">字节序处理</span>：统一采用小端序或包含字节序标记。</li>
+                    <li><span class="highlight">字长无关</span>：避免固定字长整数，使用可变长度编码。</li>
+                    <li><span class="highlight">路径标准化</span>：文件路径、环境变量等平台相关信息的抽象。</li>
+                    <li><span class="highlight">校验和</span>：包含完整性校验，防止文件损坏。</li>
+                </ul>
+                <div class="svg-container">
+                    <svg width="300" height="150" viewBox="0 0 300 150">
+                        <rect x="10" y="40" width="80" height="70" rx="10" fill="#6C63FF" opacity="0.8"/>
+                        <text x="50" y="85" text-anchor="middle" fill="white" font-weight="bold">Linux</text>
+                        <rect x="110" y="40" width="80" height="70" rx="10" fill="#FF6584" opacity="0.8"/>
+                        <text x="150" y="85" text-anchor="middle" fill="white" font-weight="bold">Windows</text>
+                        <rect x="210" y="40" width="80" height="70" rx="10" fill="#36D1DC" opacity="0.8"/>
+                        <text x="250" y="85" text-anchor="middle" fill="white" font-weight="bold">macOS</text>
+                        <path d="M50 110 Q150 150 250 110" stroke="#2D3047" stroke-width="3" fill="none"/>
+                        <circle cx="150" cy="130" r="15" fill="#FFFAE6" stroke="#2D3047" stroke-width="3"/>
+                        <text x="150" y="135" text-anchor="middle" font-size="12" font-weight="bold">Bytecode</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="architecture">
+                <h2>MLIR Bytecode 持久化架构概览</h2>
+                <div class="svg-container">
+                    <svg width="600" height="300" viewBox="0 0 600 300">
+                        <!-- 顶层流程 -->
+                        <rect x="50" y="30" width="200" height="60" rx="10" fill="#6C63FF" opacity="0.9"/>
+                        <text x="150" y="65" text-anchor="middle" fill="white" font-size="16" font-weight="bold">MLIR 文本表示</text>
+                        
+                        <rect x="350" y="30" width="200" height="60" rx="10" fill="#FF6584" opacity="0.9"/>
+                        <text x="450" y="65" text-anchor="middle" fill="white" font-size="16" font-weight="bold">Bytecode 文件</text>
+                        
+                        <path d="M250 60 L350 60" stroke="#2D3047" stroke-width="3" marker-end="url(#arrow)"/>
+                        <text x="300" y="55" text-anchor="middle" fill="#2D3047" font-size="14">序列化</text>
+                        
+                        <path d="M450 60 L550 60 L550 150 L50 150 L50 120" stroke="#2D3047" stroke-width="3" marker-end="url(#arrow)" stroke-dasharray="5,5"/>
+                        <text x="300" y="130" text-anchor="middle" fill="#2D3047" font-size="14">反序列化</text>
+                        
+                        <!-- 中间组件 -->
+                        <rect x="100" y="180" width="150" height="50" rx="8" fill="#36D1DC" opacity="0.8"/>
+                        <text x="175" y="210" text-anchor="middle" fill="white" font-size="14" font-weight="bold">版本管理器</text>
+                        
+                        <rect x="350" y="180" width="150" height="50" rx="8" fill="#FFB347" opacity="0.8"/>
+                        <text x="425" y="210" text-anchor="middle" fill="white" font-size="14" font-weight="bold">跨平台适配层</text>
+                        
+                        <!-- 底层存储 -->
+                        <rect x="225" y="250" width="150" height="40" rx="6" fill="#2D3047" opacity="0.9"/>
+                        <text x="300" y="275" text-anchor="middle" fill="white" font-size="13" font-weight="bold">持久化存储 (磁盘/网络)</text>
+                        
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#2D3047"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+                <p style="text-align: center; margin-top: 20px; color: var(--dark);">该架构展示了从文本IR到持久化Bytecode的双向转换流程，核心组件包括版本管理与跨平台适配层。</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

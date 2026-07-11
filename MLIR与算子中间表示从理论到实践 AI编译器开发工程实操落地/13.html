@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：张量抽象与Lowering详解</title>
+    <style>
+        :root {
+            --primary: #FF6B8B;
+            --secondary: #6A67CE;
+            --accent: #00C9B7;
+            --light: #FFF9F2;
+            --dark: #2D3047;
+            --text: #333333;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background-color: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            overflow: hidden;
+            border: 8px solid var(--primary);
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header .subtitle {
+            font-size: 1.4rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 200px;
+            height: 40px;
+            background: var(--accent);
+            border-radius: 20px;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .section {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            border-left: 8px solid var(--accent);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            transition: transform 0.3s;
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section h2 {
+            color: var(--secondary);
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h2 svg {
+            width: 28px;
+            height: 28px;
+            fill: currentColor;
+        }
+        .section p, .section li {
+            line-height: 1.7;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        .highlight {
+            background-color: rgba(255, 107, 139, 0.1);
+            padding: 15px;
+            border-radius: 12px;
+            border: 2px dashed var(--primary);
+            margin: 20px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background-color: var(--secondary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+        }
+        td {
+            padding: 15px 18px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .architecture {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            border: 3px solid var(--dark);
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.3rem;
+            letter-spacing: 2px;
+            font-weight: bold;
+        }
+        .code-block {
+            font-family: 'Courier New', monospace;
+            background: #2D3047;
+            color: #00C9B7;
+            padding: 20px;
+            border-radius: 12px;
+            margin: 20px 0;
+            overflow-x: auto;
+            white-space: pre;
+            font-size: 1rem;
+        }
+        .step-list {
+            counter-reset: step-counter;
+            list-style: none;
+            padding-left: 0;
+        }
+        .step-list li {
+            counter-increment: step-counter;
+            margin-bottom: 25px;
+            padding-left: 50px;
+            position: relative;
+        }
+        .step-list li:before {
+            content: counter(step-counter);
+            background: var(--primary);
+            color: white;
+            font-weight: bold;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            left: 0;
+            top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>第13讲：张量抽象与Lowering</h1>
+            <div class="subtitle">从计算图到Tensor操作、缓冲区化（Bufferization）过程详解</div>
+            <div class="decoration"></div>
+        </div>
+
+        <div class="content">
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M20,6H12L10,4H4A2,2 0 0,0 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V8A2,2 0 0,0 20,6M16,16H8V14H16V16M16,12H8V10H16V12Z"/></svg>
+                    张量（Tensor）抽象核心概念
+                </h2>
+                <p>在MLIR中，张量（Tensor）是一种<strong>值语义（Value Semantics）</strong>的抽象数据类型，用于表示多维数组。它不绑定于具体的内存位置，而是描述数据的形状（Shape）与元素类型（Element Type）。</p>
+                <ul>
+                    <li><strong>值语义</strong>：张量是不可变的，操作产生新的张量。</li>
+                    <li><strong>形状与类型</strong>：例如 <code>tensor&lt;4x3xf32&gt;</code> 表示一个4行3列的32位浮点数矩阵。</li>
+                    <li><strong>计算图友好</strong>：作为高级IR，直接对应机器学习框架中的计算节点。</li>
+                </ul>
+                <div class="highlight">
+                    <strong>关键洞察：</strong> 张量抽象将计算逻辑与内存管理解耦，使得优化（如融合、重排）可以在不关心具体内存布局的情况下进行。
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
+                    从计算图到Tensor操作
+                </h2>
+                <p>高级框架计算图（如PyTorch、TensorFlow）通过MLIR导入或构建，被表达为在张量类型上的操作序列。</p>
+                <ol class="step-list">
+                    <li><strong>图导入</strong>：将框架算子映射到MLIR中的张量操作（如<code>linalg.matmul</code>）。</li>
+                    <li><strong>规范化</strong>：将复杂操作分解为一系列基础的、标准化的张量操作。</li>
+                    <li><strong>局部优化</strong>：在张量级别进行代数简化、常量折叠、操作融合等。</li>
+                </ol>
+                <div class="code-block">
+// 示例：一个简单的点积计算在MLIR中的张量表示
+%matmul = linalg.matmul ins(%A, %B: tensor&lt;128x256xf32&gt;, tensor&lt;256x64xf32&gt;)
+                      outs(%C: tensor&lt;128x64xf32&gt;) -> tensor&lt;128x64xf32&gt;
+                </div>
+            </div>
+
+            <div class="section full-width">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M2,2H4V20H22V22H2V2M6,4H18V16H6V4M8,6V14H16V6H8M10,8H14V10H10V8M10,12H14V14H10V12Z"/></svg>
+                    缓冲区化（Bufferization）过程详解
+                </h2>
+                <p>缓冲区化是将<strong>值语义的张量</strong>转换为<strong>地址语义的内存缓冲区（MemRef）</strong>的关键 lowering 步骤。它为最终硬件执行分配具体内存。</p>
+
+                <div class="architecture">
+                    <svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="50" y="120" width="180" height="60" rx="10" fill="#FF6B8B" stroke="#2D3047" stroke-width="3"/>
+                        <text x="140" y="155" text-anchor="middle" fill="white" font-weight="bold" font-size="18">计算图/张量IR</text>
+                        <path d="M230 150 L280 150" stroke="#6A67CE" stroke-width="4" marker-end="url(#arrow)"/>
+                        <rect x="280" y="120" width="180" height="60" rx="10" fill="#00C9B7" stroke="#2D3047" stroke-width="3"/>
+                        <text x="370" y="155" text-anchor="middle" fill="white" font-weight="bold" font-size="18">缓冲区化分析</text>
+                        <path d="M460 150 L510 150" stroke="#6A67CE" stroke-width="4" marker-end="url(#arrow)"/>
+                        <rect x="510" y="120" width="180" height="60" rx="10" fill="#6A67CE" stroke="#2D3047" stroke-width="3"/>
+                        <text x="600" y="155" text-anchor="middle" fill="white" font-weight="bold" font-size="18">MemRef IR</text>
+
+                        <text x="140" y="230" text-anchor="middle" fill="#2D3047" font-size="16">值语义</text>
+                        <text x="370" y="230" text-anchor="middle" fill="#2D3047" font-size="16">内存分配与别名分析</text>
+                        <text x="600" y="230" text-anchor="middle" fill="#2D3047" font-size="16">地址语义</text>
+
+                        <defs>
+                            <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                                <path d="M0,0 L0,6 L9,3 z" fill="#6A67CE"/>
+                            </marker>
+                        </defs>
+                    </svg>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>缓冲区化阶段</th>
+                            <th>主要任务</th>
+                            <th>关键输出/决策</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>1. 内存位置分析</strong></td>
+                            <td>决定每个张量值应存储在哪个内存缓冲区中。</td>
+                            <td>Buffer Assignment Map</td>
+                        </tr>
+                        <tr>
+                            <td><strong>2. 别名分析</strong></td>
+                            <td>识别不同张量是否可共享同一块内存（写时复制、原地更新）。</td>
+                            <td>Alias Information</td>
+                        </tr>
+                        <tr>
+                            <td><strong>3. 内存分配</strong></td>
+                            <td>插入 <code>memref.alloc</code> 操作，为缓冲区分配内存。</td>
+                            <td>Allocation Operations</td>
+                        </tr>
+                        <tr>
+                            <td><strong>4. 张量操作转换</strong></td>
+                            <td>将张量操作（如 <code>linalg.matmul</code>）转换为在 MemRef 上的循环或库调用。</td>
+                            <td>Lowered Loops/External Calls</td>
+                        </tr>
+                        <tr>
+                            <td><strong>5. 拷贝插入</strong></td>
+                            <td>当无法原地操作时，插入必要的内存拷贝（<code>memref.copy</code>）。</td>
+                            <td>Explicit Copy Operations</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="highlight">
+                    <strong>工程要点：</strong> 缓冲区化策略（如一次性分配 vs. 动态分配）对性能有巨大影响。优秀的编译器会尽可能进行原地（in-place）优化，减少不必要的内存拷贝。
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
+                    核心挑战与最佳实践
+                </h2>
+                <ul>
+                    <li><strong>挑战1：别名分析复杂性</strong><br/>确定操作间内存覆盖关系需要精确的数据流分析。</li>
+                    <li><strong>挑战2：拷贝最小化</strong><br/>目标是在安全的前提下，最大化原地操作，消除冗余拷贝。</li>
+                    <li><strong>挑战3：异构内存</strong><br/>处理GPU、NPU等设备的专用内存（Device Memory）。</li>
+                    <li><strong>实践：渐进式Lowering</strong><br/>通过多级IR逐步降低抽象层次，每层进行特定优化。</li>
+                    <li><strong>实践：可定制缓冲策略</strong><br/>MLIR提供插件式的缓冲区化方案，适应不同后端需求。</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M9,22A1,1 0 0,1 8,21V18H4A2,2 0 0,1 2,16V4C2,2.89 2.9,2 4,2H20A2,2 0 0,1 22,4V16A2,2 0 0,1 20,18H13.9L10.2,21.71C10,21.9 9.75,22 9.5,22V22H9Z"/></svg>
+                    总结与展望
+                </h2>
+                <p>张量抽象与缓冲区化是MLIR连接高级计算图与低级硬件指令的<strong>核心桥梁</strong>。理解这一过程对于构建高性能AI编译器至关重要。</p>
+                <p>通过本讲，我们掌握了：</p>
+                <ol>
+                    <li>张量作为值语义抽象在MLIR中的角色。</li>
+                    <li>从框架计算图到规范化张量操作的转换流程。</li>
+                    <li>缓冲区化将张量转换为具体内存缓冲区的完整步骤与决策点。</li>
+                </ol>
+                <p>后续课程将深入<strong>循环优化</strong>、<strong>向量化</strong>以及针对特定硬件（如GPU、TPU）的Lowering策略。</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR转换（Pass）管理</title>
+    <style>
+        :root {
+            --primary-color: #6C63FF;
+            --secondary-color: #FF6584;
+            --accent-color: #36D1DC;
+            --light-color: #FFFAF0;
+            --dark-color: #2D3047;
+            --text-color: #333344;
+            --card-bg: #FFFFFF;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            overflow: hidden;
+        }
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background-color: var(--card-bg);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(108, 99, 255, 0.2);
+            padding: 40px;
+            margin: 20px auto;
+            position: relative;
+            overflow-y: auto;
+            max-height: 90vh;
+        }
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            font-size: 3.2rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.05);
+        }
+        .subtitle {
+            text-align: center;
+            color: var(--secondary-color);
+            font-size: 1.4rem;
+            margin-bottom: 40px;
+            font-weight: 500;
+        }
+        h2 {
+            color: var(--dark-color);
+            border-left: 6px solid var(--accent-color);
+            padding-left: 15px;
+            margin: 35px 0 20px;
+            font-size: 2rem;
+        }
+        h3 {
+            color: var(--primary-color);
+            margin: 25px 0 15px;
+            font-size: 1.5rem;
+        }
+        p {
+            line-height: 1.8;
+            margin-bottom: 18px;
+            font-size: 1.1rem;
+        }
+        .highlight {
+            background-color: rgba(108, 99, 255, 0.1);
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid var(--primary-color);
+            margin: 25px 0;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 30px 0;
+        }
+        .card {
+            background: linear-gradient(145deg, #ffffff, #f0f2ff);
+            border-radius: 18px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            border-top: 6px solid var(--secondary-color);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+        }
+        .card h4 {
+            color: var(--dark-color);
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .card h4 svg {
+            margin-right: 10px;
+            width: 24px;
+            height: 24px;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+            line-height: 1.7;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 18px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 16px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9ff;
+        }
+        tr:hover {
+            background-color: rgba(108, 99, 255, 0.05);
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .architecture {
+            width: 100%;
+            height: 300px;
+            background: linear-gradient(145deg, #e6eeff, #ffffff);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 30px 0;
+        }
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 25px;
+            border-top: 2px dashed var(--accent-color);
+            color: var(--dark-color);
+            font-size: 1.2rem;
+            font-weight: bold;
+            letter-spacing: 2px;
+        }
+        .keyword {
+            display: inline-block;
+            background-color: rgba(255, 101, 132, 0.15);
+            color: var(--secondary-color);
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin: 0 3px;
+        }
+        .code {
+            font-family: 'Courier New', monospace;
+            background-color: #2D3047;
+            color: #FFFAF0;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow-x: auto;
+            font-size: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MLIR转换（Pass）管理</h1>
+        <div class="subtitle">Pass管理器、Pass依赖、Pass管道、分析管理器</div>
+
+        <p>在MLIR编译框架中，<span class="keyword">Pass（转换）</span>是执行IR转换和优化的核心单元。高效管理这些Pass对于构建可靠、可维护且高性能的编译器至关重要。本章深入探讨MLIR的Pass管理机制。</p>
+
+        <div class="highlight">
+            <p><strong>核心目标：</strong>通过系统化的Pass管理，实现IR的渐进式、可预测的转换，确保编译过程的正确性、模块化和高性能。</p>
+        </div>
+
+        <h2>一、Pass管理器（PassManager）</h2>
+        <p>Pass管理器是调度和执行Pass的引擎。它负责Pass的生命周期、执行顺序以及资源管理。</p>
+
+        <div class="grid">
+            <div class="card">
+                <h4>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/>
+                    </svg>
+                    核心职责
+                </h4>
+                <ul>
+                    <li><strong>Pass注册与实例化：</strong>管理Pass的创建和销毁。</li>
+                    <li><strong>执行调度：</strong>按照指定顺序运行Pass。</li>
+                    <li><strong>错误处理：</strong>捕获并报告Pass执行中的失败。</li>
+                    <li><strong>性能分析：</strong>收集每个Pass的运行时间和IR变化。</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M11,15V12H9V15H7V11H13V15H11Z"/>
+                    </svg>
+                    关键特性
+                </h4>
+                <ul>
+                    <li><strong>嵌套管理：</strong>支持模块、函数等多级IR的Pass管理。</li>
+                    <li><strong>可配置性：</strong>允许动态启用/禁用Pass。</li>
+                    <li><strong>线程安全：</strong>为并行化Pass执行提供基础。</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>Pass管理器使用示例</h3>
+        <div class="code">
+// 创建顶级Pass管理器
+mlir::PassManager pm(ctx);
+
+// 添加Pass到管道
+pm.addPass(mlir::createCanonicalizerPass());
+pm.addPass(mlir::createCSEPass());
+
+// 运行所有Pass
+if (failed(pm.run(module))) {
+    // 处理错误
+}
+        </div>
+
+        <h2>二、Pass依赖与约束</h2>
+        <p>Pass之间的依赖关系确保转换以正确的顺序进行，避免无效操作或破坏IR一致性。</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>依赖类型</th>
+                    <th>描述</th>
+                    <th>示例</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>强依赖</strong></td>
+                    <td>Pass B必须在Pass A之后运行，因为B需要A产生的IR特性。</td>
+                    <td>内联Pass → 函数简化Pass</td>
+                </tr>
+                <tr>
+                    <td><strong>弱依赖</strong></td>
+                    <td>Pass B受益于Pass A的结果，但非必需。</td>
+                    <td>常量传播 → 公共子表达式消除</td>
+                </tr>
+                <tr>
+                    <td><strong>互斥依赖</strong></td>
+                    <td>两个Pass不能同时运行或顺序相邻。</td>
+                    <td>某些循环优化Pass之间可能存在冲突</td>
+                </tr>
+                <tr>
+                    <td><strong>分析依赖</strong></td>
+                    <td>Pass依赖于特定分析结果（如支配树）。</td>
+                    <td>循环转换需要循环分析信息</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="highlight">
+            <p><strong>最佳实践：</strong>使用MLIR的<code>getDependentDialects</code>和<code>Option&lt;&gt;</code>机制显式声明依赖，提高Pass的可移植性和可理解性。</p>
+        </div>
+
+        <h2>三、Pass管道（Pipeline）</h2>
+        <p>Pass管道将多个Pass组织成逻辑组，实现复杂的、多阶段的IR转换策略。</p>
+
+        <div class="svg-container">
+            <svg width="800" height="200" viewBox="0 0 800 200">
+                <defs>
+                    <linearGradient id="pipeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#6C63FF"/>
+                        <stop offset="100%" stop-color="#36D1DC"/>
+                    </linearGradient>
+                    <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#FF6584"/>
+                    </marker>
+                </defs>
+                <rect x="50" y="80" width="700" height="40" rx="20" fill="url(#pipeGrad)" opacity="0.8"/>
+                <g font-family="Arial" font-size="14" fill="white" text-anchor="middle">
+                    <text x="120" y="105">前端转换</text>
+                    <text x="270" y="105">规范化和简化</text>
+                    <text x="420" y="105">领域特定优化</text>
+                    <text x="570" y="105">后端预备</text>
+                    <text x="720" y="105">目标代码生成</text>
+                </g>
+                <circle cx="120" cy="100" r="8" fill="white"/>
+                <circle cx="270" cy="100" r="8" fill="white"/>
+                <circle cx="420" cy="100" r="8" fill="white"/>
+                <circle cx="570" cy="100" r="8" fill="white"/>
+                <circle cx="720" cy="100" r="8" fill="white"/>
+                <path d="M 50 100 H 800" stroke="#FF6584" stroke-width="3" stroke-dasharray="5,5" marker-end="url(#arrow)"/>
+                <text x="400" y="160" font-family="Arial" font-size="16" fill="#2D3047" text-anchor="middle">IR抽象级别逐渐降低，优化针对性逐渐增强</text>
+            </svg>
+        </div>
+
+        <h3>管道设计模式</h3>
+        <ol>
+            <li><strong>阶段化管道：</strong>每个阶段聚焦特定优化目标（如规范化、循环优化、内存优化）。</li>
+            <li><strong>条件管道：</strong>根据IR特性或目标平台动态选择子管道。</li>
+            <li><strong>嵌套管道：</strong>在模块、函数、循环等不同层级应用不同Pass序列。</li>
+            <li><strong>可重复管道：</strong>多次运行同一管道直到达到固定点（如直到IR不再变化）。</li>
+        </ol>
+
+        <h2>四、分析管理器（AnalysisManager）</h2>
+        <p>分析管理器缓存和管理<span class="keyword">分析结果</span>，避免重复计算，提高编译效率。</p>
+
+        <div class="architecture">
+            <svg width="100%" height="100%" viewBox="0 0 600 250">
+                <rect x="50" y="30" width="500" height="190" rx="10" fill="#f0f2ff" stroke="#6C63FF" stroke-width="2"/>
+                <text x="300" y="60" text-anchor="middle" font-family="Arial" font-size="18" fill="#2D3047" font-weight="bold">分析管理器架构</text>
+                
+                <rect x="80" y="90" width="120" height="40" rx="8" fill="#6C63FF"/>
+                <text x="140" y="115" text-anchor="middle" font-family="Arial" font-size="14" fill="white">Pass A</text>
+                
+                <rect x="240" y="90" width="120" height="40" rx="8" fill="#36D1DC"/>
+                <text x="300" y="115" text-anchor="middle" font-family="Arial" font-size="14" fill="white">Pass B</text>
+                
+                <rect x="400" y="90" width="120" height="40" rx="8" fill="#FF6584"/>
+                <text x="460" y="115" text-anchor="middle" font-family="Arial" font-size="14" fill="white">Pass C</text>
+                
+                <rect x="150" y="160" width="300" height="40" rx="8" fill="#2D3047"/>
+                <text x="300" y="185" text-anchor="middle" font-family="Arial" font-size="14" fill="white">分析管理器（缓存分析结果）</text>
+                
+                <path d="M 140 130 L 140 160" stroke="#2D3047" stroke-width="2" stroke-dasharray="4,4"/>
+                <path d="M 300 130 L 300 160" stroke="#2D3047" stroke-width="2" stroke-dasharray="4,4"/>
+                <path d="M 460 130 L 460 160" stroke="#2D3047" stroke-width="2" stroke-dasharray="4,4"/>
+                
+                <text x="140" y="150" text-anchor="middle" font-family="Arial" font-size="12" fill="#666">查询/更新</text>
+                <text x="300" y="150" text-anchor="middle" font-family="Arial" font-size="12" fill="#666">查询/更新</text>
+                <text x="460" y="150" text-anchor="middle" font-family="Arial" font-size="12" fill="#666">查询/更新</text>
+                
+                <text x="300" y="220" text-anchor="middle" font-family="Arial" font-size="12" fill="#666">缓存的分析：支配树、别名分析、循环信息、数据流分析...</text>
+            </svg>
+        </div>
+
+        <h3>分析管理的关键机制</h3>
+        <ul>
+            <li><strong>惰性计算：</strong>分析结果仅在首次请求时计算。</li>
+            <li><strong>失效机制：</strong>当IR被修改时，相关分析结果自动标记为失效。</li>
+            <li><strong>作用域感知：</strong>分析结果与IR层级（模块、函数等）关联。</li>
+            <li><strong>线程局部存储：</strong>支持并行Pass执行时的分析隔离。</li>
+        </ul>
+
+        <div class="code">
+// 在Pass中获取分析结果示例
+struct MyPass : public mlir::PassWrapper&lt;MyPass, ...&gt; {
+  void runOnOperation() override {
+    // 获取支配树分析结果
+    auto &domInfo = getAnalysis&lt;mlir::DominanceInfo&gt;();
+    // 使用分析结果进行转换
+    ...
+  }
+};
+        </div>
+
+        <h2>五、工程实践要点</h2>
+        <div class="grid">
+            <div class="card">
+                <h4>调试与验证</h4>
+                <ul>
+                    <li>使用<code>-debug</code>和<code>-print-ir-after-all</code>标志跟踪IR变化。</li>
+                    <li>实现Pass的<code>verify</code>方法确保转换后IR有效性。</li>
+                    <li>利用MLIR的测试框架进行回归测试。</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>性能调优</h4>
+                <ul>
+                    <li>通过分析管理器避免重复计算。</li>
+                    <li>对大型IR采用增量分析更新。</li>
+                    <li>合理设计管道，减少不必要的Pass执行。</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h4>可扩展性</h4>
+                <ul>
+                    <li>使用Pass选项实现可配置行为。</li>
+                    <li>通过继承机制创建特化Pass变体。</li>
+                    <li>注册外部Pass到统一管理器。</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="highlight">
+            <p><strong>总结：</strong>MLIR的Pass管理框架提供了强大而灵活的基础设施，使编译器开发者能够构建复杂、高效且可维护的转换管道。理解Pass管理器、依赖关系、管道设计和分析管理是掌握MLIR工程实践的关键。</p>
+        </div>
+
+        <footer>
+            雁熙云著
+        </footer>
+    </div>
+</body>
+</html>

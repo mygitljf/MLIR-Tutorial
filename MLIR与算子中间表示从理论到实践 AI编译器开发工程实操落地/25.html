@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：目标相关优化与Lowering路径设计</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FA;
+            --dark: #2D3047;
+            --text: #333333;
+            --card-bg: #FFFFFF;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background-color: var(--card-bg);
+            border-radius: 30px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+            border: 8px solid white;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .title {
+            color: var(--primary);
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            font-weight: 800;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .subtitle {
+            color: var(--secondary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        .decoration {
+            position: absolute;
+            width: 300px;
+            height: 300px;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        .dec-1 {
+            top: -100px;
+            right: -100px;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+        }
+        .dec-2 {
+            bottom: -80px;
+            left: -80px;
+            background: radial-gradient(circle, var(--secondary) 0%, transparent 70%);
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+            border-left: 8px solid var(--accent);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card-title {
+            color: var(--dark);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card-title svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--primary);
+        }
+        .card ul, .card ol {
+            padding-left: 25px;
+            margin-bottom: 20px;
+        }
+        .card li {
+            margin-bottom: 12px;
+            line-height: 1.6;
+        }
+        .highlight {
+            background-color: rgba(108, 99, 255, 0.1);
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .architecture {
+            grid-column: span 2;
+            background: linear-gradient(145deg, #ffffff, #f0f0f0);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            border: 3px dashed var(--primary);
+        }
+        .arch-title {
+            color: var(--dark);
+            font-size: 2rem;
+            margin-bottom: 25px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+            font-weight: 600;
+        }
+        td {
+            padding: 18px;
+            border-bottom: 1px solid #eee;
+            background-color: white;
+        }
+        tr:hover td {
+            background-color: rgba(108, 99, 255, 0.05);
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 25px;
+            border-top: 2px solid #eee;
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+        .keyword {
+            color: var(--secondary);
+            font-weight: 700;
+        }
+        .note {
+            background-color: #FFF9E6;
+            padding: 20px;
+            border-radius: 15px;
+            border-left: 6px solid #FFC107;
+            margin: 25px 0;
+        }
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+            .architecture {
+                grid-column: span 1;
+            }
+            .title {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="decoration dec-1"></div>
+        <div class="decoration dec-2"></div>
+        
+        <div class="header">
+            <h1 class="title">目标相关优化与Lowering</h1>
+            <p class="subtitle">从“计算”方言到“硬件”方言的 lowering 路径设计</p>
+        </div>
+
+        <div class="content">
+            <div class="card">
+                <h2 class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,17V16H9V14H13V13H10A1,1 0 0,1 9,12V9A1,1 0 0,1 10,8H11V7H13V8H15V10H11V11H14A1,1 0 0,1 15,12V15A1,1 0 0,1 14,16H13V17H11Z"/></svg>
+                    核心概念
+                </h2>
+                <p><span class="highlight">Lowering</span> 是将高级抽象逐步转换为低级、目标相关表示的过程，是编译器后端的关键环节。</p>
+                <ul>
+                    <li><span class="keyword">目标相关优化</span>：针对特定硬件（CPU/GPU/TPU）的优化，如向量化、循环展开、内存布局调整。</li>
+                    <li><span class="keyword">方言转换</span>：从“计算”方言（如 <code>linalg</code>、<code>tensor</code>）到“硬件”方言（如 <code>LLVM</code>、<code>GPU</code>、<code>SPIR-V</code>）的映射。</li>
+                    <li><span class="keyword">渐进式降低</span>：通过多级中间表示，逐步降低抽象层次，保留优化机会。</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M13,9H18.5L13,3.5V9M6,2H14L20,8V20A2,2 0 0,1 18,22H6C4.89,22 4,21.1 4,20V4C4,2.89 4.89,2 6,2M15,18V16H6V18H15M18,14V12H6V14H18Z"/></svg>
+                    设计原则
+                </h2>
+                <ol>
+                    <li><strong>模块化与可组合</strong>：每个 lowering 步骤独立、可重用。</li>
+                    <li><strong>目标信息显式化</strong>：硬件特性（如向量长度、内存层次）通过属性或方言表达。</li>
+                    <li><span class="keyword">模式匹配与重写</span>：使用 MLIR 的 <code>PatternRewriter</code> 进行转换。</li>
+                    <li><strong>验证与调试</strong>：每步转换后保持 IR 合法，并提供调试工具。</li>
+                </ol>
+            </div>
+
+            <div class="architecture">
+                <h2 class="arch-title">典型 Lowering 路径架构</h2>
+                <svg viewBox="0 0 800 400" style="width:100%; height:auto;">
+                    <!-- 背景 -->
+                    <rect x="0" y="0" width="800" height="400" fill="#F8F9FA" rx="10"/>
+                    
+                    <!-- 层级 -->
+                    <rect x="100" y="50" width="600" height="60" fill="#6C63FF" rx="10" opacity="0.9"/>
+                    <text x="400" y="85" text-anchor="middle" fill="white" font-size="20" font-weight="bold">计算方言层 (Linalg/Tensor)</text>
+                    
+                    <rect x="150" y="130" width="500" height="60" fill="#36D1DC" rx="10" opacity="0.9"/>
+                    <text x="400" y="165" text-anchor="middle" fill="white" font-size="18" font-weight="bold">循环/向量化层 (SCF/Affine/Vector)</text>
+                    
+                    <rect x="200" y="210" width="400" height="60" fill="#FF6584" rx="10" opacity="0.9"/>
+                    <text x="400" y="245" text-anchor="middle" fill="white" font-size="18" font-weight="bold">硬件抽象层 (GPU/Async/SPIR-V)</text>
+                    
+                    <rect x="250" y="290" width="300" height="60" fill="#2D3047" rx="10" opacity="0.9"/>
+                    <text x="400" y="325" text-anchor="middle" fill="white" font-size="18" font-weight="bold">目标代码层 (LLVM/NVVM/ROCDL)</text>
+                    
+                    <!-- 箭头 -->
+                    <polygon points="400,110 410,130 390,130" fill="#6C63FF"/>
+                    <line x1="400" y1="110" x2="400" y2="130" stroke="#6C63FF" stroke-width="3"/>
+                    
+                    <polygon points="400,190 410,210 390,210" fill="#36D1DC"/>
+                    <line x1="400" y1="190" x2="400" y2="210" stroke="#36D1DC" stroke-width="3"/>
+                    
+                    <polygon points="400,270 410,290 390,290" fill="#FF6584"/>
+                    <line x1="400" y1="270" x2="400" y2="290" stroke="#FF6584" stroke-width="3"/>
+                    
+                    <!-- 标签 -->
+                    <text x="50" y="80" fill="#6C63FF" font-size="16" font-weight="bold">高级抽象</text>
+                    <text x="50" y="320" fill="#2D3047" font-size="16" font-weight="bold">机器相关</text>
+                </svg>
+                <p style="margin-top:20px; color:#666;">渐进式 lowering 路径：保持每层优化机会，逐步靠近硬件目标。</p>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
+                    优化策略
+                </h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>优化类型</th>
+                            <th>应用阶段</th>
+                            <th>目标硬件</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>循环融合与切割</td>
+                            <td>SCF/Affine 层</td>
+                            <td>CPU/GPU</td>
+                        </tr>
+                        <tr>
+                            <td>向量化与SIMD</td>
+                            <td>Vector 方言层</td>
+                            <td>CPU/GPU</td>
+                        </tr>
+                        <tr>
+                            <td>内存层次优化</td>
+                            <td>GPU/Async 层</td>
+                            <td>GPU</td>
+                        </tr>
+                        <tr>
+                            <td>指令选择与调度</td>
+                            <td>LLVM/NVVM 层</td>
+                            <td>CPU/GPU/TPU</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">
+                    <svg viewBox="0 0 24 24"><path d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M11,16.5L18,9.5L16.59,8.09L11,13.67L7.91,10.59L6.5,12L11,16.5Z"/></svg>
+                    工程实践要点
+                </h2>
+                <ul>
+                    <li>使用 <span class="highlight">MLIR 转换框架</span>（PassManager）管理 lowering 流程。</li>
+                    <li>定义清晰的 <span class="keyword">接口（Interfaces）</span> 和 <span class="keyword">特质（Traits）</span> 来约束操作语义。</li>
+                    <li>为目标硬件定制 <span class="keyword">转换模式（Conversion Patterns）</span>。</li>
+                    <li>利用 <span class="highlight">诊断（Diagnostic）</span> 和 <span class="highlight">验证（Verification）</span> 确保转换正确性。</li>
+                    <li>设计可插拔的后端，支持多硬件目标。</li>
+                </ul>
+                <div class="note">
+                    <strong>提示：</strong> 在 lowering 过程中，应尽可能保留高层次语义信息，以便进行跨层优化。
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

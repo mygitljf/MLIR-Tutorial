@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：后端代码生成</title>
+    <style>
+        :root {
+            --primary: #4361ee;
+            --secondary: #3a0ca3;
+            --accent: #f72585;
+            --light: #f8f9fa;
+            --dark: #212529;
+            --success: #4cc9f0;
+            --warning: #ff9e00;
+            --gradient: linear-gradient(135deg, #4361ee, #3a0ca3, #f72585);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(180deg, #f0f4ff 0%, #ffffff 100%);
+            color: var(--dark);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px rgba(67, 97, 238, 0.15);
+            overflow: hidden;
+            border: 8px solid white;
+            position: relative;
+        }
+        .header {
+            background: var(--gradient);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header .subtitle {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .decoration {
+            position: absolute;
+            bottom: -10px;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M1200 120L0 16.48 0 0 1200 0 1200 120z' fill='white'/%3E%3C/svg%3E");
+            background-size: cover;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+        }
+        .section {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease;
+            border-left: 6px solid var(--primary);
+        }
+        .section:hover {
+            transform: translateY(-5px);
+        }
+        .section h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h2 svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--accent);
+        }
+        .section p {
+            line-height: 1.7;
+            margin-bottom: 20px;
+            font-size: 1.05rem;
+        }
+        .highlight {
+            background: linear-gradient(120deg, #e0f7fa 0%, #bbdefb 100%);
+            padding: 25px;
+            border-radius: 15px;
+            margin: 25px 0;
+            border: 2px dashed var(--success);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 16px 20px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th {
+            background-color: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        ul, ol {
+            padding-left: 25px;
+            margin: 15px 0;
+            line-height: 1.8;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        .arch-svg {
+            width: 100%;
+            height: 300px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin: 30px 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.2rem;
+            letter-spacing: 2px;
+            border-top: 5px solid var(--accent);
+        }
+        .grid-full {
+            grid-column: 1 / -1;
+        }
+        .color-box {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .step-num {
+            background: var(--accent);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 20px;
+            flex-shrink: 0;
+        }
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+                padding: 30px;
+            }
+            .header h1 {
+                font-size: 2.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>后端代码生成：从MLIR到机器码</h1>
+            <div class="subtitle">
+                深入解析LLVM IR生成、指令选择、寄存器分配与指令调度四大核心环节，掌握AI编译器后端工程化关键
+            </div>
+            <div class="decoration"></div>
+        </div>
+
+        <div class="content">
+            <div class="section grid-full">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M13 14h-2v-4h2m0 8h-2v-2h2M1 21h22L12 2 1 21z"/></svg>
+                    核心概念总览
+                </h2>
+                <p>后端代码生成是将高级中间表示（如MLIR）转换为目标平台可执行机器码的过程。它直接决定了生成代码的性能与效率，是编译器工程中最具挑战性的环节之一。</p>
+                
+                <div class="arch-svg">
+                    <svg width="90%" height="90%" viewBox="0 0 800 250">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#4361ee"/>
+                                <stop offset="100%" stop-color="#f72585"/>
+                            </linearGradient>
+                            <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+                                <path d="M 0 0 L 10 5 L 0 10 z" fill="#3a0ca3"/>
+                            </marker>
+                        </defs>
+                        
+                        <rect x="50" y="100" width="140" height="60" rx="10" fill="#4cc9f0" opacity="0.9"/>
+                        <text x="120" y="135" text-anchor="middle" fill="white" font-weight="bold" font-size="16">MLIR Dialect</text>
+                        
+                        <rect x="250" y="100" width="140" height="60" rx="10" fill="#4361ee" opacity="0.9"/>
+                        <text x="320" y="135" text-anchor="middle" fill="white" font-weight="bold" font-size="16">LLVM IR</text>
+                        
+                        <rect x="450" y="100" width="140" height="60" rx="10" fill="#3a0ca3" opacity="0.9"/>
+                        <text x="520" y="135" text-anchor="middle" fill="white" font-weight="bold" font-size="16">指令选择</text>
+                        
+                        <rect x="650" y="50" width="140" height="60" rx="10" fill="#7209b7" opacity="0.9"/>
+                        <text x="720" y="85" text-anchor="middle" fill="white" font-weight="bold" font-size="16">寄存器分配</text>
+                        
+                        <rect x="650" y="150" width="140" height="60" rx="10" fill="#f72585" opacity="0.9"/>
+                        <text x="720" y="185" text-anchor="middle" fill="white" font-weight="bold" font-size="16">指令调度</text>
+                        
+                        <line x1="190" y1="130" x2="250" y2="130" stroke="#3a0ca3" stroke-width="3" marker-end="url(#arrow)"/>
+                        <line x1="390" y1="130" x2="450" y2="130" stroke="#3a0ca3" stroke-width="3" marker-end="url(#arrow)"/>
+                        <line x1="590" y1="130" x2="650" y2="80" stroke="#3a0ca3" stroke-width="3" marker-end="url(#arrow)"/>
+                        <line x1="590" y1="130" x2="650" y2="180" stroke="#3a0ca3" stroke-width="3" marker-end="url(#arrow)"/>
+                        
+                        <text x="220" y="170" text-anchor="middle" fill="#3a0ca3" font-size="14">Lowering</text>
+                        <text x="420" y="170" text-anchor="middle" fill="#3a0ca3" font-size="14">Selection</text>
+                        <text x="620" y="60" text-anchor="middle" fill="#3a0ca3" font-size="14">Allocation</text>
+                        <text x="620" y="210" text-anchor="middle" fill="#3a0ca3" font-size="14">Scheduling</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M5,9.5L7.5,14H2.5L5,9.5M3,4H7V8H3V4M5,16A2,2 0 0,0 3,18A2,2 0 0,0 5,20A2,2 0 0,0 7,18A2,2 0 0,0 5,16M9,5V7H21V5H9M9,19H21V17H9V19M9,13H21V11H9V13Z"/></svg>
+                    LLVM IR生成
+                </h2>
+                <p>将MLIR中的各种Dialect（如Affine、Linalg、GPU）转换为与硬件无关的LLVM中间表示，为后续优化和代码生成奠定基础。</p>
+                
+                <div class="highlight">
+                    <strong>关键步骤：</strong>
+                    <div class="step">
+                        <div class="step-num">1</div>
+                        <div>类型与操作转换：将MLIR类型映射到LLVM类型，操作转换为LLVM指令</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">2</div>
+                        <div>内存模型对齐：处理内存地址空间、对齐和布局</div>
+                    </div>
+                    <div class="step">
+                        <div class="step-num">3</div>
+                        <div>控制流转换：将MLIR区域转换为LLVM基本块和分支</div>
+                    </div>
+                </div>
+                
+                <table>
+                    <tr>
+                        <th>MLIR构造</th>
+                        <th>LLVM IR对应</th>
+                        <th>转换示例</th>
+                    </tr>
+                    <tr>
+                        <td>memref</td>
+                        <td>指针 + 元数据</td>
+                        <td>memref&lt;2x3xf32&gt; → float* + 尺寸信息</td>
+                    </tr>
+                    <tr>
+                        <td>affine.load</td>
+                        <td>getelementptr + load</td>
+                        <td>索引计算 + 内存加载</td>
+                    </tr>
+                    <tr>
+                        <td>scf.for</td>
+                        <td>循环基本块</td>
+                        <td>生成phi节点与条件分支</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M11 9H9V2H7V9H5V2H3V9C3 11.12 4.66 12.84 6.75 12.97V22H9.25V12.97C11.34 12.84 13 11.12 13 9V2H11V9M16 6V14H18.5V22H21V2C18.24 2 16 4.24 16 6Z"/></svg>
+                    目标平台指令选择
+                </h2>
+                <p>将平台无关的LLVM IR指令映射到目标架构的机器指令集，需要考虑指令成本、可用功能和硬件特性。</p>
+                
+                <ul>
+                    <li><span class="color-box" style="background:#4361ee;"></span><strong>模式匹配：</strong>使用DAG（有向无环图）匹配LLVM IR到机器指令模式</li>
+                    <li><span class="color-box" style="background:#f72585;"></span><strong>成本模型：</strong>基于延迟、吞吐量、功耗选择最优指令序列</li>
+                    <li><span class="color-box" style="background:#4cc9f0;"></span><strong>特殊指令利用：</strong>SIMD、向量化、特殊功能单元指令</li>
+                    <li><span class="color-box" style="background:#ff9e00;"></span><strong>多目标支持：</strong>x86、ARM、RISC-V、GPU等不同架构</li>
+                </ul>
+                
+                <p><strong>挑战：</strong>处理复杂寻址模式、条件执行、预测执行等架构特定特性，同时保持代码质量。</p>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M2 17H20V19H2V17M2 11H20V13H2V11M2 5H20V7H2V5M6 22V20H10V22H6M10 20V18H14V20H10M14 18V16H18V18H14M18 16V14H22V16H18Z"/></svg>
+                    寄存器分配
+                </h2>
+                <p>将无限数量的虚拟寄存器映射到有限的物理寄存器集合，是后端优化中影响性能的关键环节。</p>
+                
+                <ol>
+                    <li><strong>活跃性分析：</strong>确定变量的生存区间和冲突关系</li>
+                    <li><strong>图着色分配：</strong>将寄存器分配问题转化为图着色问题</li>
+                    <li><strong>溢出处理：</strong>当物理寄存器不足时，将变量溢出到内存</li>
+                    <li><strong> coalescing：</strong>合并相邻的虚拟寄存器减少移动</li>
+                </ol>
+                
+                <div class="highlight">
+                    <strong>现代寄存器分配策略：</strong><br>
+                    • 线性扫描分配（快速，JIT编译常用）<br>
+                    • PBQP（基于分区的二次分配）<br>
+                    • 贪心分配（LLVM默认策略）<br>
+                    • 机器学习辅助分配（新兴研究方向）
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M13,2.03V2.05L13,4.05C17.39,4.59 20.5,8.58 19.96,12.97C19.5,16.61 16.64,19.5 13,19.93V21.93C18.5,21.38 22.5,16.5 21.95,11C21.5,6.25 17.73,2.5 13,2.03M11,2.06C9.05,2.25 7.19,3 5.67,4.26L7.1,5.74C8.22,4.84 9.57,4.26 11,4.06V2.06M4.26,5.67C3,7.19 2.25,9.04 2.05,11H4.05C4.24,9.58 4.8,8.23 5.69,7.1L4.26,5.67M2.06,13C2.26,14.96 3.03,16.81 4.27,18.33L5.69,16.9C4.81,15.77 4.24,14.42 4.06,13H2.06M7.1,18.37L5.67,19.74C7.18,21 9.04,21.79 11,22V20C9.58,19.82 8.23,19.25 7.1,18.37M12.5,7V12.25L17,14.92L16.25,16.15L11,13V7H12.5Z"/></svg>
+                    指令调度
+                </h2>
+                <p>重新排列指令顺序以最大化指令级并行性，减少流水线停顿，提高硬件利用率。</p>
+                
+                <table>
+                    <tr>
+                        <th>调度类型</th>
+                        <th>目标</th>
+                        <th>技术</th>
+                    </tr>
+                    <tr>
+                        <td>前向调度</td>
+                        <td>隐藏指令延迟</td>
+                        <td>关键路径优先</td>
+                    </tr>
+                    <tr>
+                        <td>后向调度</td>
+                        <td>减少寄存器压力</td>
+                        <td>从使用点反向调度</td>
+                    </tr>
+                    <tr>
+                        <td>循环调度</td>
+                        <td>软件流水线</td>
+                        <td>模调度</td>
+                    </tr>
+                    <tr>
+                        <td>动态调度</td>
+                        <td>运行时优化</td>
+                        <td>硬件支持</td>
+                    </tr>
+                </table>
+                
+                <p><strong>现代处理器考虑：</strong>超线程、乱序执行、多发射、功能单元冲突、缓存局部性等。</p>
+            </div>
+
+            <div class="section grid-full">
+                <h2>
+                    <svg viewBox="0 0 24 24"><path d="M12,15C12.81,15 13.5,14.7 14.11,14.11C14.7,13.5 15,12.81 15,12C15,11.19 14.7,10.5 14.11,9.89C13.5,9.3 12.81,9 12,9C11.19,9 10.5,9.3 9.89,9.89C9.3,10.5 9,11.19 9,12C9,12.81 9.3,13.5 9.89,14.11C10.5,14.7 11.19,15 12,15M12,2C14.75,2 17.1,3 19.05,4.95C21,6.9 22,9.25 22,12V13.45C22,14.45 21.65,15.3 21,16C20.3,16.67 19.5,17 18.5,17C17.3,17 16.31,16.5 15.56,15.5C14.56,16.5 13.38,17 12,17C10.63,17 9.45,16.5 8.46,15.54C7.5,14.55 7,13.38 7,12C7,10.63 7.5,9.45 8.46,8.46C9.45,7.5 10.63,7 12,7C13.38,7 14.55,7.5 15.54,8.46C16.5,9.45 17,10.63 17,12V13.45C17,13.86 17.16,14.22 17.46,14.55C17.78,14.84 18.19,15 18.5,15C18.81,15 19.22,14.84 19.54,14.55C19.84,14.22 20,13.86 20,13.45V12C20,9.81 19.23,7.93 17.65,6.35C16.07,4.77 14.19,4 12,4C9.81,4 7.93,4.77 6.35,6.35C4.77,7.93 4,9.81 4,12C4,14.19 4.77,16.07 6.35,17.65C7.93,19.23 9.81,20 12,20H17V22H12C9.25,22 6.9,21 4.95,19.05C3,17.1 2,14.75 2,12C2,9.25 3,6.9 4.95,4.95C6.9,3 9.25,2 12,2Z"/></svg>
+                    工程实践要点
+                </h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                    <div>
+                        <h3 style="color: var(--secondary); margin-bottom: 15px;">🔧 MLIR后端开发流程</h3>
+                        <ul>
+                            <li>定义目标描述（Target Description）</li>
+                            <li>实现Dialect转换（Conversion Patterns）</li>
+                            <li>定制优化管道（Pass Pipeline）</li>
+                            <li>集成LLVM后端基础设施</li>
+                            <li>测试与性能基准</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">🚀 性能优化技巧</h3>
+                        <ul>
+                            <li>利用MLIR多级中间表示渐进式lowering</li>
+                            <li>针对特定硬件定制指令选择规则</li>
+                            <li>寄存器分配策略与启发式调优</li>
+                            <li>基于机器模型的指令调度</li>
+                            <li>Profile-guided优化</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="highlight" style="margin-top: 20px;">
+                    <strong>总结：</strong>后端代码生成是编译器技术的核心体现，需要深入理解计算机体系结构、算法优化和工程实践。MLIR通过模块化、可扩展的设计，使得后端开发更加系统化和可维护，为AI编译器的高性能代码生成提供了强大基础。
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

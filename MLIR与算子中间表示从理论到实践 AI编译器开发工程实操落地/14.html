@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLIR课程：循环变换与优化</title>
+    <style>
+        :root {
+            --primary: #6C63FF;
+            --secondary: #FF6584;
+            --accent: #36D1DC;
+            --light: #F8F9FF;
+            --dark: #2A2D43;
+            --text: #333344;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7ff 0%, #e3eeff 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 25px 60px rgba(108, 99, 255, 0.15);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            position: relative;
+        }
+        .title {
+            font-size: 3.2rem;
+            color: var(--primary);
+            margin-bottom: 15px;
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle {
+            font-size: 1.4rem;
+            color: var(--secondary);
+            font-weight: 600;
+            margin-bottom: 30px;
+        }
+        .decorative-line {
+            height: 6px;
+            width: 200px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            margin: 0 auto 30px;
+            border-radius: 3px;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+            border-left: 8px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-8px);
+        }
+        .card h2 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+            display: flex;
+            align-items: center;
+        }
+        .card h2 svg {
+            margin-right: 12px;
+        }
+        .card ul, .card ol {
+            padding-left: 24px;
+            margin-bottom: 20px;
+        }
+        .card li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        .highlight {
+            background: linear-gradient(120deg, rgba(108, 99, 255, 0.1) 0%, rgba(54, 209, 220, 0.1) 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            border: 2px dashed var(--accent);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.05);
+        }
+        th, td {
+            padding: 18px 20px;
+            text-align: left;
+            border-bottom: 1px solid #e0e5ff;
+        }
+        th {
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8faff;
+        }
+        .svg-container {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .architecture {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #2A2D43 0%, #3a3f6d 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 20px;
+            margin-top: 20px;
+        }
+        .architecture h2 {
+            color: #FF6584;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 50px;
+            padding-top: 30px;
+            border-top: 2px solid #e0e5ff;
+            color: var(--dark);
+            font-size: 1.2rem;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(108, 99, 255, 0.08);
+            z-index: -1;
+        }
+        .bubble-1 {
+            width: 120px;
+            height: 120px;
+            top: -40px;
+            right: 10%;
+        }
+        .bubble-2 {
+            width: 80px;
+            height: 80px;
+            bottom: 20%;
+            left: -30px;
+            background: rgba(255, 101, 132, 0.08);
+        }
+        .keyword {
+            background: linear-gradient(90deg, #FF6584, #FF9A8B);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin: 0 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="bubble bubble-1"></div>
+    <div class="bubble bubble-2"></div>
+    <div class="container">
+        <div class="header">
+            <h1 class="title">循环变换与优化</h1>
+            <div class="subtitle">Affine方言、循环融合、平铺（Tiling）、向量化基础</div>
+            <div class="decorative-line"></div>
+            <p style="font-size: 1.2rem; color: var(--dark); max-width: 800px; margin: 0 auto; line-height: 1.8;">
+                本讲深入探讨MLIR中循环优化的核心技术与工程实践，涵盖从高层循环表示到硬件向量化的完整流程。
+            </p>
+        </div>
+
+        <div class="content">
+            <div class="card">
+                <h2>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    Affine方言
+                </h2>
+                <p>Affine方言是MLIR中用于表示和变换循环结构的关键组件，提供静态可分析的循环嵌套表示。</p>
+                <ul>
+                    <li><strong>多面体模型</strong>：基于整数集合与仿射映射的数学抽象。</li>
+                    <li><strong>循环嵌套表示</strong>：支持完美与非完美循环嵌套。</li>
+                    <li><strong>数据访问分析</strong>：依赖分析、内存访问模式识别。</li>
+                    <li><strong>变换原语</strong>：循环交换、分块、展开、流水线等。</li>
+                </ul>
+                <div class="highlight">
+                    <strong>核心优势：</strong> 提供编译器可自动分析与优化的高层循环抽象，桥接算法描述与硬件优化。
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M18 16L22 12L18 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M6 8L2 12L6 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M14.5 4L9.5 20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    循环融合
+                </h2>
+                <p>将多个循环合并为单个循环，减少循环开销，提升数据局部性。</p>
+                <ol>
+                    <li><strong>合法性检查</strong>：依赖分析确保变换安全。</li>
+                    <li><strong>融合决策</strong>：基于数据重用与开销模型。</li>
+                    <li><strong>循环体合并</strong>：合并多个循环体操作。</li>
+                    <li><strong>收益评估</strong>：减少内存访问、提升缓存利用率。</li>
+                </ol>
+                <table>
+                    <thead>
+                        <tr><th>融合类型</th><th>目标</th><th>适用场景</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>水平融合</td><td>减少循环次数</td><td>独立循环相同迭代空间</td></tr>
+                        <tr><td>垂直融合</td><td>提升数据局部性</td><td>生产者-消费者循环</td></tr>
+                        <tr><td>斜向融合</td><td>平衡并行与局部性</td><td>复杂依赖模式</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+                        <path d="M3 9H21" stroke="currentColor" stroke-width="2"/>
+                        <path d="M3 15H21" stroke="currentColor" stroke-width="2"/>
+                        <path d="M9 3V21" stroke="currentColor" stroke-width="2"/>
+                        <path d="M15 3V21" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                    平铺（Tiling）
+                </h2>
+                <p>将循环迭代空间划分为小块，优化缓存利用与并行粒度。</p>
+                <ul>
+                    <li><strong>分块大小选择</strong>：基于缓存容量与硬件特性。</li>
+                    <li><strong>多级分块</strong>：L1/L2缓存、寄存器分块。</li>
+                    <li><strong>循环重排序</strong>：优化数据访问模式。</li>
+                    <li><strong>GPU分块</strong>：线程块、线程束级优化。</li>
+                </ul>
+                <div class="svg-container">
+                    <svg width="300" height="180" viewBox="0 0 300 180">
+                        <rect x="10" y="10" width="280" height="160" fill="#F0F2FF" stroke="#6C63FF" stroke-width="2"/>
+                        <rect x="20" y="20" width="60" height="60" fill="#36D1DC" opacity="0.8"/>
+                        <rect x="90" y="20" width="60" height="60" fill="#36D1DC" opacity="0.8"/>
+                        <rect x="160" y="20" width="60" height="60" fill="#36D1DC" opacity="0.8"/>
+                        <rect x="20" y="90" width="60" height="60" fill="#FF6584" opacity="0.8"/>
+                        <rect x="90" y="90" width="60" height="60" fill="#FF6584" opacity="0.8"/>
+                        <rect x="160" y="90" width="60" height="60" fill="#FF6584" opacity="0.8"/>
+                        <text x="150" y="170" text-anchor="middle" fill="#2A2D43" font-size="14">迭代空间分块示意图</text>
+                    </svg>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 8H8V4H4V8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M14 6H18V4H14V6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M16 14H20V12H16V14Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M8 18H12V16H8V18Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M4 12H6V20H4V12Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                        <path d="M14 20H16V18H14V20Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    </svg>
+                    向量化基础
+                </h2>
+                <p>将标量操作转换为向量指令，利用SIMD单元提升数据级并行。</p>
+                <ol>
+                    <li><strong>循环向量化</strong>：内层循环转换为向量操作。</li>
+                    <li><strong>SLP向量化</strong>：合并相似指令为向量指令。</li>
+                    <li><strong>向量长度选择</strong>：匹配硬件SIMD宽度。</li>
+                    <li><strong>掩码处理</strong>：处理非对齐与剩余迭代。</li>
+                </ol>
+                <div class="highlight">
+                    <strong>MLIR向量方言：</strong> 提供硬件无关的向量操作表示，支持渐进式 lowering 到不同硬件目标（CPU/GPU/AI加速器）。
+                </div>
+            </div>
+        </div>
+
+        <div class="architecture">
+            <h2>MLIR循环优化流程架构</h2>
+            <div class="svg-container">
+                <svg width="700" height="300" viewBox="0 0 700 300">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#6C63FF"/>
+                            <stop offset="100%" stop-color="#36D1DC"/>
+                        </linearGradient>
+                    </defs>
+                    <rect x="50" y="50" width="600" height="200" rx="15" fill="rgba(255,255,255,0.1)" stroke="url(#grad1)" stroke-width="3"/>
+                    <rect x="80" y="80" width="120" height="50" rx="10" fill="#FF6584"/>
+                    <text x="140" y="110" text-anchor="middle" fill="white" font-weight="600">Affine循环</text>
+                    <path d="M200 105 L250 105" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow)"/>
+                    <rect x="250" y="80" width="120" height="50" rx="10" fill="#6C63FF"/>
+                    <text x="310" y="110" text-anchor="middle" fill="white" font-weight="600">循环变换</text>
+                    <path d="M370 105 L420 105" stroke="#36D1DC" stroke-width="3" marker-end="url(#arrow)"/>
+                    <rect x="420" y="80" width="120" height="50" rx="10" fill="#36D1DC"/>
+                    <text x="480" y="110" text-anchor="middle" fill="white" font-weight="600">向量化</text>
+                    <path d="M490 130 L490 180" stroke="#FF9A8B" stroke-width="3" marker-end="url(#arrow)"/>
+                    <rect x="420" y="180" width="120" height="50" rx="10" fill="#FF9A8B"/>
+                    <text x="480" y="210" text-anchor="middle" fill="white" font-weight="600">硬件代码</text>
+                    <path d="M200 130 L200 180" stroke="#FF9A8B" stroke-width="3" marker-end="url(#arrow)"/>
+                    <rect x="80" y="180" width="120" height="50" rx="10" fill="#9D7BFF"/>
+                    <text x="140" y="210" text-anchor="middle" fill="white" font-weight="600">平铺/融合</text>
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#36D1DC"/>
+                        </marker>
+                    </defs>
+                    <text x="350" y="270" text-anchor="middle" fill="white" font-size="16">渐进式 lowering 与优化流程</text>
+                </svg>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>稀疏计算：MLIR中的稀疏张量技术</title>
+    <style>
+        :root {
+            --primary: #FF6B8B;
+            --secondary: #6A5ACD;
+            --accent: #00CED1;
+            --light: #FFF5F7;
+            --dark: #2E2E4F;
+            --text: #333344;
+            --shadow: rgba(0, 0, 0, 0.1);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, var(--light) 0%, #E6F7FF 100%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            background: white;
+            border-radius: 30px;
+            box-shadow: 0 20px 60px var(--shadow);
+            overflow: hidden;
+            border: 8px solid white;
+            position: relative;
+        }
+        .header {
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+        .header h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .header p {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        .content {
+            padding: 50px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 40px;
+        }
+        .card {
+            background: var(--light);
+            border-radius: 24px;
+            padding: 32px;
+            box-shadow: 0 10px 30px rgba(255,107,139,0.1);
+            border-top: 8px solid var(--accent);
+            transition: transform 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+        }
+        .card h2 {
+            color: var(--secondary);
+            font-size: 2rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .card h2 svg {
+            width: 32px;
+            height: 32px;
+            fill: var(--primary);
+        }
+        .card ul, .card ol {
+            padding-left: 24px;
+            margin: 20px 0;
+            line-height: 1.8;
+        }
+        .card li {
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px var(--shadow);
+        }
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 18px;
+            text-align: left;
+            font-size: 1.2rem;
+        }
+        td {
+            padding: 18px;
+            border-bottom: 2px dashed var(--accent);
+            background: #FFF;
+        }
+        tr:nth-child(even) td {
+            background: #F9F9FF;
+        }
+        .architecture {
+            grid-column: 1 / -1;
+            background: linear-gradient(45deg, #2E2E4F, #4A4A6F);
+            color: white;
+            padding: 40px;
+            border-radius: 24px;
+            margin-top: 20px;
+        }
+        .architecture h2 {
+            color: var(--accent);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        svg {
+            display: block;
+            margin: 0 auto;
+        }
+        .footer {
+            background: var(--dark);
+            color: white;
+            text-align: center;
+            padding: 30px;
+            font-size: 1.5rem;
+            letter-spacing: 3px;
+            font-weight: bold;
+        }
+        .highlight {
+            color: var(--primary);
+            font-weight: bold;
+        }
+        .emoji {
+            font-size: 1.5rem;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🌿 稀疏计算：稀疏张量技术全解析</h1>
+            <p>MLIR稀疏方言、编码方案与编译器优化技术深度解读，赋能高性能AI计算与科学计算</p>
+        </div>
+
+        <div class="content">
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>稀疏编码与存储格式</h2>
+                <p>稀疏张量通过高效存储非零元素，大幅减少内存与计算开销，是现代AI与科学计算的基石。</p>
+                <ul>
+                    <li><span class="highlight">COO（坐标格式）</span>：存储每个非零元素的坐标与值，灵活通用。</li>
+                    <li><span class="highlight">CSR/CSC（压缩稀疏行/列）</span>：高效存储稀疏矩阵，优化行/列访问。</li>
+                    <li><span class="highlight">ELLPACK/DIAGONAL</span>：针对GPU与特定结构优化的专用格式。</li>
+                    <li><span class="highlight">MLIR稀疏张量属性</span>：通过<code>#sparse_tensor.encoding</code>定义维度、位宽与排序。</li>
+                </ul>
+                <table>
+                    <tr><th>格式</th><th>适用场景</th><th>优点</th></tr>
+                    <tr><td>COO</td><td>通用稀疏张量</td><td>简单灵活，易于构建</td></tr>
+                    <tr><td>CSR</td><td>稀疏矩阵运算</td><td>高效行访问，存储紧凑</td></tr>
+                    <tr><td>ELL</td><td>GPU并行计算</td><td>规整结构，利于向量化</td></tr>
+                    <tr><td>Blocked</td><td>结构化稀疏</td><td>利用局部性，提升缓存效率</td></tr>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M14 10V4.5l5.5 5.5M5 3c-1.11 0-2 .89-2 2v14c0 1.11.89 2 2 2h14c1.11 0 2-.89 2-2V9l-6-6H5m0 2h7v5h5v9H5V5m2 14v-2h10v2H7m0-3v-2h10v2H7m0-3v-2h10v2H7z"/></svg>MLIR稀疏方言（Sparse Dialect）</h2>
+                <p>MLIR内置稀疏方言，提供高层次抽象与编译器可重写的中间表示，实现跨硬件优化。</p>
+                <ol>
+                    <li><span class="highlight">稀疏张量类型</span>：<code>sparse_tensor<tensor<?x?xf64>, #CSR></code></li>
+                    <li><span class="highlight">专用操作</span>：<code>sparse_tensor.convert</code>、<code>sparse_tensor.new</code>、<code>sparse_tensor.out</code></li>
+                    <li><span class="highlight">迭代与查询</span>：支持稀疏维度遍历、非零元素访问</li>
+                    <li><span class="highlight">编译器可重写</span>：通过模式匹配自动优化稀疏算子</li>
+                </ol>
+                <p>稀疏方言将存储格式与计算分离，允许编译器自动选择最优存储与算法。</p>
+            </div>
+
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M9.68 13.69L12 11.93l2.31 1.76-.88-2.85L16.75 9l-2.89-.23L12 6l-1.87 2.77L7.25 9l2.31 1.84-.88 2.85M20 10c0-4.42-3.58-8-8-8s-8 3.58-8 8c0 3.23 1.92 6 4.67 7.25l.08.04c.62.28 1.05.91 1.05 1.64v.27c0 .89.72 1.61 1.61 1.61h4.38c.89 0 1.61-.72 1.61-1.61v-.27c0-.73.43-1.36 1.05-1.64l.08-.04C18.08 16 20 13.23 20 10z"/></svg>稀疏编译器优化技术</h2>
+                <p>编译器通过多层次优化，将稀疏抽象转化为高性能可执行代码。</p>
+                <ul>
+                    <li><span class="highlight">循环变换</span>：稀疏迭代空间压缩、循环融合与分块。</li>
+                    <li><span class="highlight">代码生成</span>：自动生成稀疏内核，支持SIMD与多线程。</li>
+                    <li><span class="highlight">运行时库集成</span>：链接高效稀疏库（如Intel MKL、cuSPARSE）。</li>
+                    <li><span class="highlight">格式自动选择</span>：基于张量特征与硬件自动选择存储格式。</li>
+                    <li><span class="highlight">混合稀疏-稠密优化</span>：识别混合计算模式，优化数据流。</li>
+                </ul>
+                <p>优化目标：最大化数据局部性、最小化索引开销、充分利用并行硬件。</p>
+            </div>
+
+            <div class="architecture">
+                <h2>🛠️ 稀疏编译器架构图</h2>
+                <svg width="800" height="300" viewBox="0 0 800 300">
+                    <defs>
+                        <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#FF6B8B"/>
+                            <stop offset="100%" stop-color="#6A5ACD"/>
+                        </linearGradient>
+                        <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#00CED1"/>
+                            <stop offset="100%" stop-color="#6A5ACD"/>
+                        </linearGradient>
+                    </defs>
+                    <rect x="50" y="50" width="150" height="60" rx="10" fill="url(#grad1)" stroke="#FFF" stroke-width="2"/>
+                    <text x="125" y="85" fill="white" text-anchor="middle" font-weight="bold">前端表示</text>
+                    <path d="M210 80 L260 80" stroke="#00CED1" stroke-width="3" marker-end="url(#arrow)"/>
+                    <rect x="260" y="50" width="150" height="60" rx="10" fill="url(#grad1)" stroke="#FFF" stroke-width="2"/>
+                    <text x="335" y="85" fill="white" text-anchor="middle" font-weight="bold">MLIR稀疏方言</text>
+                    <path d="M410 80 L460 80" stroke="#00CED1" stroke-width="3" marker-end="url(#arrow)"/>
+                    <rect x="460" y="50" width="150" height="60" rx="10" fill="url(#grad1)" stroke="#FFF" stroke-width="2"/>
+                    <text x="535" y="85" fill="white" text-anchor="middle" font-weight="bold">优化与降级</text>
+                    <path d="M610 80 L660 80" stroke="#00CED1" stroke-width="3" marker-end="url(#arrow)"/>
+                    <rect x="660" y="50" width="150" height="60" rx="10" fill="url(#grad1)" stroke="#FFF" stroke-width="2"/>
+                    <text x="735" y="85" fill="white" text-anchor="middle" font-weight="bold">目标代码</text>
+                    <rect x="150" y="180" width="500" height="80" rx="15" fill="url(#grad2)" opacity="0.9"/>
+                    <text x="400" y="225" fill="white" text-anchor="middle" font-weight="bold" font-size="18">稀疏运行时库（格式转换、并行调度、内核执行）</text>
+                    <path d="M400 110 L400 170" stroke="#FF6B8B" stroke-width="2" stroke-dasharray="5,5"/>
+                    <defs>
+                        <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                            <path d="M0,0 L0,6 L9,3 z" fill="#00CED1"/>
+                        </marker>
+                    </defs>
+                </svg>
+                <p style="text-align: center; margin-top: 20px; color: #CCC;">编译器通过多层次IR转换，将高级稀疏操作映射为高效硬件指令。</p>
+            </div>
+
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M12 15c1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3 1.34 3 3 3m0-10c4.42 0 8 3.58 8 8s-3.58 8-8 8-8-3.58-8-8 3.58-8 8-8z"/></svg>应用场景与未来展望</h2>
+                <ul>
+                    <li><span class="highlight">大语言模型推理</span>：注意力机制中的稀疏激活与权重。</li>
+                    <li><span class="highlight">科学计算</span>：有限元、流体模拟中的稀疏线性求解。</li>
+                    <li><span class="highlight">推荐系统</span>：超高维稀疏特征嵌入与交互。</li>
+                    <li><span class="highlight">图神经网络</span>：不规则图结构的稀疏矩阵运算。</li>
+                    <li><span class="highlight">自动稀疏化</span>：编译器自动识别并稀疏化稠密计算。</li>
+                    <li><span class="highlight">跨硬件统一</span>：CPU/GPU/TPU的稀疏计算统一中间表示。</li>
+                </ul>
+                <p>稀疏计算正成为AI编译器与高性能计算的核心竞争力，推动绿色高效计算发展。</p>
+            </div>
+
+            <div class="card">
+                <h2><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>核心要点总结</h2>
+                <ol>
+                    <li>稀疏编码是<span class="highlight">内存与计算效率的关键</span>，需根据数据特征选择格式。</li>
+                    <li>MLIR稀疏方言提供<span class="highlight">跨层抽象</span>，分离存储、算法与硬件。</li>
+                    <li>编译器优化包括<span class="highlight">循环变换、代码生成、格式选择与运行时集成</span>。</li>
+                    <li>稀疏计算广泛应用于<span class="highlight">AI、科学计算与大数据</span>领域。</li>
+                    <li>未来趋势是<span class="highlight">自动化、统一化与全栈优化</span>。</li>
+                </ol>
+                <p style="margin-top: 20px; font-style: italic; color: var(--secondary);">掌握稀疏计算技术，构建下一代高性能、低功耗的智能计算系统。</p>
+            </div>
+        </div>
+
+        <div class="footer">
+            雁熙云著
+        </div>
+    </div>
+</body>
+</html>
